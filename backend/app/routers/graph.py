@@ -1,6 +1,9 @@
 """Graph API router."""
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional, List
+import json
+import io
 
 from app.core.graph_store import get_graph
 from app.services.graph_service import GraphService
@@ -10,6 +13,7 @@ from app.schemas.graph import (
     GraphData,
     NodeExpandRequest,
     NodeSearchRequest,
+    FlowTraceResponse,
 )
 
 
@@ -169,3 +173,94 @@ async def get_subgraph(node_ids: List[str]):
     """
     service = get_graph_service()
     return service.get_subgraph(node_ids)
+
+
+@router.get("/trace/{entity_id}", response_model=FlowTraceResponse)
+async def trace_flow(entity_id: str):
+    """
+    Trace flow through the graph for visualization.
+
+    Returns the complete flow path for an entity with nodes and edges
+    that can be highlighted in the graph visualization.
+
+    Path Parameters:
+    - entity_id: Entity to trace (Order, Invoice, Delivery, etc.)
+
+    Returns:
+    - success: Whether the trace was successful
+    - path_nodes: List of nodes in the flow path
+    - path_edges: List of edges connecting the path
+    - status: Flow completeness (complete, partial, incomplete, error)
+    - message: Description of the flow
+
+    Example: /api/graph/trace/ORD-0123
+    Returns the Order → Invoice → Payment → Delivery flow
+    """
+    service = get_graph_service()
+    result = service.trace_flow_visual(entity_id)
+    return FlowTraceResponse(**result)
+
+
+@router.get("/export")
+async def export_graph():
+    """
+    Export the entire graph as JSON.
+
+    Returns a JSON file containing all nodes and edges in the graph.
+    This can be used for backup, sharing, or importing into other tools.
+
+    Response format:
+    {
+      "nodes": [{id, type, label, color, properties}, ...],
+      "edges": [{source, target, type, label, properties}, ...],
+      "metadata": {node_count, edge_count, exported_at}
+    }
+    """
+    service = get_graph_service()
+    graph = get_graph()
+
+    # Export all nodes
+    all_nodes = []
+    for node_id in graph.nodes():
+        data = graph.nodes[node_id]
+        all_nodes.append({
+            "id": node_id,
+            "type": data.get("type", "Unknown"),
+            "label": data.get("label", node_id),
+            "color": data.get("color", "#808080"),
+            "properties": data.get("properties", {})
+        })
+
+    # Export all edges
+    all_edges = []
+    for source, target in graph.edges():
+        edge_data = graph.edges[source, target]
+        all_edges.append({
+            "source": source,
+            "target": target,
+            "type": edge_data.get("type", "UNKNOWN"),
+            "label": edge_data.get("label", ""),
+            "properties": edge_data.get("properties", {})
+        })
+
+    # Create export data
+    export_data = {
+        "nodes": all_nodes,
+        "edges": all_edges,
+        "metadata": {
+            "node_count": len(all_nodes),
+            "edge_count": len(all_edges),
+            "exported_at": str(__import__("datetime").datetime.now())
+        }
+    }
+
+    # Convert to JSON
+    json_str = json.dumps(export_data, indent=2)
+    json_bytes = json_str.encode('utf-8')
+
+    # Return as downloadable file
+    return StreamingResponse(
+        io.BytesIO(json_bytes),
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=graph_export.json"}
+    )

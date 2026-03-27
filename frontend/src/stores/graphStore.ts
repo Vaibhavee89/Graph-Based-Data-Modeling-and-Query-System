@@ -2,7 +2,7 @@
  * Graph state management using Zustand
  */
 import { create } from 'zustand';
-import type { GraphNode, GraphEdge } from '@/types';
+import type { GraphNode, GraphEdge, FlowTraceResponse } from '@/types';
 
 interface GraphStore {
   // State
@@ -10,6 +10,9 @@ interface GraphStore {
   edges: GraphEdge[];
   selectedNode: GraphNode | null;
   expandedNodes: Set<string>;
+  flowPath: FlowTraceResponse | null;
+  highlightedNodes: Set<string>;
+  highlightedEdges: Set<string>;
 
   // Actions
   setNodes: (nodes: GraphNode[]) => void;
@@ -20,6 +23,8 @@ interface GraphStore {
   markNodeExpanded: (nodeId: string) => void;
   clearGraph: () => void;
   focusNode: (nodeId: string) => void;
+  setFlowPath: (flowPath: FlowTraceResponse | null) => void;
+  clearFlowHighlight: () => void;
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -28,6 +33,9 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   edges: [],
   selectedNode: null,
   expandedNodes: new Set(),
+  flowPath: null,
+  highlightedNodes: new Set(),
+  highlightedEdges: new Set(),
 
   // Set all nodes (replace existing)
   setNodes: (nodes) => set({ nodes }),
@@ -81,5 +89,25 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     if (node) {
       set({ selectedNode: node });
     }
+  },
+
+  // Set flow path for highlighting
+  setFlowPath: (flowPath) => {
+    if (!flowPath) {
+      set({ flowPath: null, highlightedNodes: new Set(), highlightedEdges: new Set() });
+      return;
+    }
+
+    const highlightedNodes = new Set(flowPath.path_nodes.map((n) => n.id));
+    const highlightedEdges = new Set(
+      flowPath.path_edges.map((e) => `${e.source}-${e.target}`)
+    );
+
+    set({ flowPath, highlightedNodes, highlightedEdges });
+  },
+
+  // Clear flow highlighting
+  clearFlowHighlight: () => {
+    set({ flowPath: null, highlightedNodes: new Set(), highlightedEdges: new Set() });
   },
 }));

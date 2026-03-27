@@ -54,3 +54,12 @@ class NodeListParams(BaseModel):
     limit: int = Field(default=100, ge=1, le=1000)
     offset: int = Field(default=0, ge=0)
     node_type: Optional[str] = None
+
+
+class FlowTraceResponse(BaseModel):
+    """Response for flow tracing with visualization data."""
+    success: bool
+    path_nodes: List[Dict[str, Any]]
+    path_edges: List[Dict[str, str]]
+    status: str = Field(description="Flow status: complete, partial, incomplete, or error")
+    message: str

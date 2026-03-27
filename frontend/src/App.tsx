@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { healthCheck } from './services/api'
 import GraphCanvas from './components/GraphCanvas/GraphCanvas'
+import ChatInterface from './components/ChatInterface/ChatInterface'
 
 function App() {
   useEffect(() => {
@@ -23,16 +24,7 @@ function App() {
 
       {/* Chat Interface - Right 40% */}
       <div className="w-[40%] h-full bg-background">
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-700 mb-2">
-              Chat Interface
-            </h2>
-            <p className="text-gray-500">
-              Natural language query interface coming in Phase 5
-            </p>
-          </div>
-        </div>
+        <ChatInterface />
       </div>
     </div>
   )

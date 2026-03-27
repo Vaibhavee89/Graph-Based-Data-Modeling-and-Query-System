@@ -19,15 +19,18 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Loader2 } from 'lucide-react'
+import { Search, Loader2, Download } from 'lucide-react'
 
 import { graphAPI } from '@/services/api'
+import { downloadJSON, getTimestampedFilename } from '@/lib/export'
 import { useGraphStore } from '@/stores/graphStore'
 import CustomNode from './CustomNode'
 import Legend from './Legend'
 import NodeDetailsPanel from '../NodeDetails/NodeDetailsPanel'
+import FilterPanel, { GraphFilters } from './FilterPanel'
 import { layoutNodes, convertEdges } from '@/lib/graphLayout'
 import { debounce } from '@/lib/utils'
+import { highlightFlowNodes, highlightFlowEdges, FLOW_COLORS, getFlowStatusLabel, getFlowStatusIcon } from '@/lib/flowHighlight'
 
 const nodeTypes = {
   custom: CustomNode,
@@ -43,12 +46,24 @@ function GraphCanvasInner() {
     addNodes,
     addEdges,
     markNodeExpanded,
+    flowPath,
+    highlightedNodes,
+    highlightedEdges,
   } = useGraphStore()
 
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isExpanding, setIsExpanding] = useState(false)
+
+  // Filter state
+  const [filters, setFilters] = useState<GraphFilters>({
+    nodeTypes: new Set(['Customer', 'Product', 'Order', 'Invoice', 'Payment', 'Delivery', 'Address']),
+    edgeTypes: new Set(['PLACED', 'CONTAINS', 'GENERATED', 'PAID_BY', 'RESULTED_IN', 'TO_ADDRESS', 'HAS_ADDRESS']),
+  })
+
+  const availableNodeTypes = ['Customer', 'Product', 'Order', 'Invoice', 'Payment', 'Delivery', 'Address']
+  const availableEdgeTypes = ['PLACED', 'CONTAINS', 'GENERATED', 'PAID_BY', 'RESULTED_IN', 'TO_ADDRESS', 'HAS_ADDRESS']
 
   // Fetch initial nodes
   const { data: initialNodes, isLoading } = useQuery({
@@ -76,6 +91,112 @@ function GraphCanvasInner() {
       // For now, we'll add edges as we expand nodes
     }
   }, [initialNodes])
+
+  // Apply flow highlighting when flowPath changes
+  useEffect(() => {
+    if (!flowPath || nodes.length === 0) return
+
+    // Apply node highlighting
+    const highlightedNodesData = nodes.map((node) => {
+      const isHighlighted = highlightedNodes.has(node.id)
+
+      if (isHighlighted) {
+        // Determine color based on flow status
+        let highlightColor = FLOW_COLORS.complete
+        if (flowPath.status === 'partial') highlightColor = FLOW_COLORS.partial
+        if (flowPath.status === 'incomplete') highlightColor = FLOW_COLORS.incomplete
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isHighlighted: true,
+          },
+          style: {
+            ...node.style,
+            border: `3px solid ${highlightColor}`,
+            boxShadow: `0 0 20px ${highlightColor}80`,
+          },
+        }
+      }
+      return node
+    })
+
+    // Apply edge highlighting
+    const highlightedEdgesData = edges.map((edge) => {
+      const edgeKey = `${edge.source}-${edge.target}`
+      const isHighlighted = highlightedEdges.has(edgeKey)
+
+      if (isHighlighted) {
+        return {
+          ...edge,
+          animated: true,
+          style: {
+            ...edge.style,
+            stroke: FLOW_COLORS.edge,
+            strokeWidth: 3,
+          },
+        }
+      }
+      return edge
+    })
+
+    setNodes(highlightedNodesData)
+    setEdges(highlightedEdgesData)
+  }, [flowPath, highlightedNodes, highlightedEdges])
+
+  // Apply filters to visible nodes and edges
+  const { filteredNodes, filteredEdges } = useMemo(() => {
+    // Filter nodes by type
+    const visibleNodes = nodes.filter((node) =>
+      filters.nodeTypes.has(node.data.type)
+    )
+
+    // Get IDs of visible nodes
+    const visibleNodeIds = new Set(visibleNodes.map((n) => n.id))
+
+    // Filter edges: keep only if both source and target are visible AND edge type is selected
+    const visibleEdges = edges.filter((edge) => {
+      const edgeType = edge.data?.type || 'UNKNOWN'
+      return (
+        visibleNodeIds.has(edge.source) &&
+        visibleNodeIds.has(edge.target) &&
+        filters.edgeTypes.has(edgeType)
+      )
+    })
+
+    return { filteredNodes: visibleNodes, filteredEdges: visibleEdges }
+  }, [nodes, edges, filters])
+
+  // Reset filters
+  const handleResetFilters = () => {
+    setFilters({
+      nodeTypes: new Set(availableNodeTypes),
+      edgeTypes: new Set(availableEdgeTypes),
+    })
+  }
+
+  // Handle export graph
+  const handleExportGraph = async () => {
+    try {
+      // Fetch from backend export endpoint
+      const response = await fetch('http://localhost:8000/api/graph/export')
+      const blob = await response.blob()
+
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = getTimestampedFilename('graph_export', 'json')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to export graph:', error)
+      alert('Failed to export graph. Please try again.')
+    }
+  }
 
   // Handle node changes
   const onNodesChange: OnNodesChange = useCallback(
@@ -262,8 +383,8 @@ function GraphCanvasInner() {
   return (
     <div className="relative w-full h-full">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={filteredNodes}
+        edges={filteredEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
@@ -296,15 +417,48 @@ function GraphCanvasInner() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-64"
             />
+            <button
+              onClick={handleExportGraph}
+              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              title="Export graph as JSON"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </Panel>
 
         {/* Instructions Panel */}
-        {nodes.length > 0 && (
+        {nodes.length > 0 && !flowPath && (
           <Panel position="top-center" className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
             <p className="text-sm text-blue-900">
               <strong>Click</strong> to view details • <strong>Double-click</strong> to expand connections
             </p>
+          </Panel>
+        )}
+
+        {/* Flow Status Panel */}
+        {flowPath && (
+          <Panel position="top-center" className={`border rounded-lg px-4 py-2 ${
+            flowPath.status === 'complete' ? 'bg-green-50 border-green-200' :
+            flowPath.status === 'partial' ? 'bg-yellow-50 border-yellow-200' :
+            'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{getFlowStatusIcon(flowPath.status)}</span>
+              <p className={`text-sm font-medium ${
+                flowPath.status === 'complete' ? 'text-green-900' :
+                flowPath.status === 'partial' ? 'text-yellow-900' :
+                'text-red-900'
+              }`}>
+                {getFlowStatusLabel(flowPath.status)} - {flowPath.path_nodes.length} nodes highlighted
+              </p>
+              <button
+                onClick={() => useGraphStore.getState().clearFlowHighlight()}
+                className="ml-2 px-2 py-1 text-xs bg-white rounded hover:bg-gray-100 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
           </Panel>
         )}
       </ReactFlow>
@@ -317,6 +471,15 @@ function GraphCanvasInner() {
         node={selectedNode}
         onClose={() => setSelectedNode(null)}
         onExpand={handleExpand}
+      />
+
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        availableNodeTypes={availableNodeTypes}
+        availableEdgeTypes={availableEdgeTypes}
+        onFiltersChange={setFilters}
+        onReset={handleResetFilters}
       />
 
       {/* Loading overlay during expansion */}

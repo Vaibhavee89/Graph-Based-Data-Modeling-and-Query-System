@@ -7,6 +7,7 @@ import type {
   GraphOverview,
   GraphNode,
   QueryResponse,
+  FlowTraceResponse,
 } from '@/types';
 
 // Get API URL from environment variable or use default
@@ -78,6 +79,14 @@ export const graphAPI = {
    */
   searchNodes: async (query: string): Promise<GraphNode[]> => {
     const response = await apiClient.post('/api/graph/search', { query });
+    return response.data;
+  },
+
+  /**
+   * Trace flow through the graph
+   */
+  traceFlow: async (entityId: string): Promise<FlowTraceResponse> => {
+    const response = await apiClient.get(`/api/graph/trace/${entityId}`);
     return response.data;
   },
 };

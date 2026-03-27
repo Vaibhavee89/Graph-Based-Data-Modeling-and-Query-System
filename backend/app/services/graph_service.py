@@ -376,3 +376,151 @@ class GraphService:
             ))
 
         return neighbors_by_type
+
+    def trace_flow_visual(self, entity_id: str) -> Dict[str, any]:
+        """
+        Trace flow through the graph and return path data for visualization.
+
+        Args:
+            entity_id: Starting entity ID
+
+        Returns:
+            Dictionary with path nodes, edges, and status
+        """
+        if not self.graph.has_node(entity_id):
+            return {
+                "success": False,
+                "message": f"Entity {entity_id} not found",
+                "path_nodes": [],
+                "path_edges": [],
+                "status": "error"
+            }
+
+        entity_type = self.graph.nodes[entity_id].get('type')
+        path_nodes = [entity_id]
+        path_edges = []
+        flow_status = "complete"
+
+        if entity_type == 'Order':
+            # Trace Order → Invoice → Payment → Delivery
+
+            # Find invoice
+            invoice_id = None
+            for successor in self.graph.successors(entity_id):
+                if self.graph.nodes[successor].get('type') == 'Invoice':
+                    invoice_id = successor
+                    path_nodes.append(invoice_id)
+                    path_edges.append({
+                        "source": entity_id,
+                        "target": invoice_id,
+                        "type": "GENERATED"
+                    })
+                    break
+
+            if not invoice_id:
+                flow_status = "incomplete"
+            else:
+                # Find payment
+                payment_id = None
+                for successor in self.graph.successors(invoice_id):
+                    if self.graph.nodes[successor].get('type') == 'Payment':
+                        payment_id = successor
+                        path_nodes.append(payment_id)
+                        path_edges.append({
+                            "source": invoice_id,
+                            "target": payment_id,
+                            "type": "PAID_BY"
+                        })
+                        break
+
+                if not payment_id:
+                    flow_status = "partial"
+
+            # Find delivery
+            delivery_id = None
+            for successor in self.graph.successors(entity_id):
+                if self.graph.nodes[successor].get('type') == 'Delivery':
+                    delivery_id = successor
+                    path_nodes.append(delivery_id)
+                    path_edges.append({
+                        "source": entity_id,
+                        "target": delivery_id,
+                        "type": "RESULTED_IN"
+                    })
+                    break
+
+            if not delivery_id and flow_status == "complete":
+                flow_status = "partial"
+
+        elif entity_type == 'Invoice':
+            # Trace Invoice → Payment
+            payment_id = None
+            for successor in self.graph.successors(entity_id):
+                if self.graph.nodes[successor].get('type') == 'Payment':
+                    payment_id = successor
+                    path_nodes.append(payment_id)
+                    path_edges.append({
+                        "source": entity_id,
+                        "target": payment_id,
+                        "type": "PAID_BY"
+                    })
+                    break
+
+            if not payment_id:
+                flow_status = "incomplete"
+
+            # Trace back to Order
+            for predecessor in self.graph.predecessors(entity_id):
+                if self.graph.nodes[predecessor].get('type') == 'Order':
+                    path_nodes.insert(0, predecessor)
+                    path_edges.insert(0, {
+                        "source": predecessor,
+                        "target": entity_id,
+                        "type": "GENERATED"
+                    })
+                    break
+
+        elif entity_type == 'Delivery':
+            # Trace back to Order
+            for predecessor in self.graph.predecessors(entity_id):
+                if self.graph.nodes[predecessor].get('type') == 'Order':
+                    order_id = predecessor
+                    path_nodes.insert(0, order_id)
+                    path_edges.insert(0, {
+                        "source": order_id,
+                        "target": entity_id,
+                        "type": "RESULTED_IN"
+                    })
+
+                    # Find invoice for this order
+                    for successor in self.graph.successors(order_id):
+                        if self.graph.nodes[successor].get('type') == 'Invoice':
+                            invoice_id = successor
+                            path_nodes.insert(1, invoice_id)
+                            path_edges.insert(0, {
+                                "source": order_id,
+                                "target": invoice_id,
+                                "type": "GENERATED"
+                            })
+                            break
+                    break
+
+        # Get full node data for path nodes
+        nodes_data = []
+        for node_id in path_nodes:
+            data = self.graph.nodes[node_id]
+            nodes_data.append(GraphNode(
+                id=node_id,
+                type=data.get('type', 'Unknown'),
+                label=data.get('label', node_id),
+                color=data.get('color', '#808080'),
+                properties=data.get('properties', {})
+            ))
+
+        return {
+            "success": True,
+            "path_nodes": [node.dict() for node in nodes_data],
+            "path_edges": path_edges,
+            "status": flow_status,
+            "message": f"Flow trace for {entity_id}: {flow_status}"
+        }

@@ -69,3 +69,22 @@ export interface QueryResponse {
 export interface APIError {
   detail: string;
 }
+
+// Flow trace response
+export interface FlowTraceResponse {
+  success: boolean;
+  path_nodes: Array<{
+    id: string;
+    type: string;
+    label: string;
+    color: string;
+    properties: Record<string, any>;
+  }>;
+  path_edges: Array<{
+    source: string;
+    target: string;
+    type: string;
+  }>;
+  status: 'complete' | 'partial' | 'incomplete' | 'error';
+  message: string;
+}
