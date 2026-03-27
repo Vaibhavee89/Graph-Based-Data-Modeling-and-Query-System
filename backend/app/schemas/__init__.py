@@ -8,6 +8,12 @@ from app.schemas.graph import (
     NodeSearchRequest,
     NodeListParams,
 )
+from app.schemas.query import (
+    QueryRequest,
+    QueryResponse,
+    GuardrailResult,
+    IntentClassification,
+)
 
 __all__ = [
     "GraphNode",
@@ -17,4 +23,8 @@ __all__ = [
     "NodeExpandRequest",
     "NodeSearchRequest",
     "NodeListParams",
+    "QueryRequest",
+    "QueryResponse",
+    "GuardrailResult",
+    "IntentClassification",
 ]
