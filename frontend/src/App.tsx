@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { healthCheck } from './services/api'
+import GraphCanvas from './components/GraphCanvas/GraphCanvas'
 
 function App() {
   useEffect(() => {
@@ -17,16 +18,7 @@ function App() {
     <div className="w-full h-full flex">
       {/* Graph Canvas - Left 60% */}
       <div className="w-[60%] h-full border-r border-border bg-slate-50">
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-700 mb-2">
-              Graph Canvas
-            </h2>
-            <p className="text-gray-500">
-              Graph visualization will be rendered here
-            </p>
-          </div>
-        </div>
+        <GraphCanvas />
       </div>
 
       {/* Chat Interface - Right 40% */}
@@ -37,7 +29,7 @@ function App() {
               Chat Interface
             </h2>
             <p className="text-gray-500">
-              Natural language query interface will be here
+              Natural language query interface coming in Phase 5
             </p>
           </div>
         </div>
