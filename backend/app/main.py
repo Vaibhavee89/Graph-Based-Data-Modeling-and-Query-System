@@ -69,7 +69,7 @@ async def root():
     }
 
 
-# TODO: Include routers here
-# from app.routers import graph, query
-# app.include_router(graph.router, prefix="/api/graph", tags=["Graph"])
-# app.include_router(query.router, prefix="/api/query", tags=["Query"])
+# Include routers
+from app.routers import graph
+app.include_router(graph.router, prefix="/api/graph", tags=["Graph"])
+# app.include_router(query.router, prefix="/api/query", tags=["Query"])  # TODO: Add query router
