@@ -35,9 +35,3 @@ Thumbs.db
 # Documentation
 README.md
 docs/
-
-# Config files (copied separately if needed)
-vite.config.ts
-tsconfig.json
-tailwind.config.js
-postcss.config.js

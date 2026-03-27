@@ -2,7 +2,7 @@
  * Filter panel for graph visualization
  */
 import { useState } from 'react'
-import { Filter, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Filter, ChevronDown, ChevronUp } from 'lucide-react'
 
 export interface GraphFilters {
   nodeTypes: Set<string>

@@ -1,6 +1,7 @@
 """Application configuration using pydantic-settings."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, Union
 
 
 class Settings(BaseSettings):
@@ -33,7 +34,15 @@ class Settings(BaseSettings):
     graph_pickle_path: str = "backend/graph.pickle"
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: Union[list[str], str] = ["http://localhost:5173", "http://localhost:3000"]
+
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            # Split comma-separated string into list
+            return [origin.strip() for origin in v.split(',')]
+        return v
 
     model_config = SettingsConfigDict(
         env_file=".env",

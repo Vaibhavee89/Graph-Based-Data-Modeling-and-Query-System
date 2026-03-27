@@ -2,7 +2,7 @@
  * Chat interface component - Main chat UI
  */
 import { useEffect, useRef, useState } from 'react'
-import { Trash2, AlertCircle, Download, MoreVertical } from 'lucide-react'
+import { Trash2, AlertCircle, Download } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 
 import { queryAPI, graphAPI } from '@/services/api'

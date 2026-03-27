@@ -22,7 +22,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, Loader2, Download } from 'lucide-react'
 
 import { graphAPI } from '@/services/api'
-import { downloadJSON, getTimestampedFilename } from '@/lib/export'
+import { getTimestampedFilename } from '@/lib/export'
 import { useGraphStore } from '@/stores/graphStore'
 import CustomNode from './CustomNode'
 import Legend from './Legend'
@@ -30,17 +30,16 @@ import NodeDetailsPanel from '../NodeDetails/NodeDetailsPanel'
 import FilterPanel, { GraphFilters } from './FilterPanel'
 import { layoutNodes, convertEdges } from '@/lib/graphLayout'
 import { debounce } from '@/lib/utils'
-import { highlightFlowNodes, highlightFlowEdges, FLOW_COLORS, getFlowStatusLabel, getFlowStatusIcon } from '@/lib/flowHighlight'
+import { FLOW_COLORS, getFlowStatusLabel, getFlowStatusIcon } from '@/lib/flowHighlight'
 
 const nodeTypes = {
   custom: CustomNode,
 }
 
 function GraphCanvasInner() {
-  const { fitView, setCenter, setViewport } = useReactFlow()
+  const { setCenter } = useReactFlow()
   const {
     nodes: storeNodes,
-    edges: storeEdges,
     selectedNode,
     setSelectedNode,
     addNodes,
@@ -86,8 +85,6 @@ function GraphCanvasInner() {
       setNodes(layoutedNodes)
       addNodes(initialNodes)
 
-      // Fetch edges for initial nodes
-      const nodeIds = initialNodes.map((n) => n.id)
       // For now, we'll add edges as we expand nodes
     }
   }, [initialNodes])
@@ -212,7 +209,7 @@ function GraphCanvasInner() {
 
   // Handle node click
   const onNodeClick: NodeMouseHandler = useCallback(
-    (event, node) => {
+    (_event, node) => {
       const backendNode = storeNodes.find((n) => n.id === node.id)
       if (backendNode) {
         setSelectedNode(backendNode)
@@ -223,7 +220,7 @@ function GraphCanvasInner() {
 
   // Handle node double click (expand)
   const onNodeDoubleClick: NodeMouseHandler = useCallback(
-    async (event, node) => {
+    async (_event, node) => {
       if (isExpanding) return
 
       setIsExpanding(true)
