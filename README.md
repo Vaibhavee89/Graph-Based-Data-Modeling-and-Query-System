@@ -2,6 +2,12 @@
 
 A complete system that unifies fragmented business data into an interactive graph with an LLM-powered natural language query interface.
 
+## Screenshot
+
+![Application Screenshot](docs/images/app-screenshot.png)
+
+*Graph visualization with interactive node exploration, entity details panel, and AI-powered chat interface*
+
 ## Overview
 
 This project converts business data (orders, deliveries, invoices, payments, customers, products, addresses) into an interconnected graph with:
