@@ -17,11 +17,16 @@ class Settings(BaseSettings):
 
     # API Keys
     anthropic_api_key: str
+    groq_api_key: Optional[str] = None
 
     # LLM Settings
     llm_model: str = "claude-haiku-4-5-20251001"
     llm_max_tokens: int = 4096
     llm_temperature: float = 0.0
+
+    # Groq fallback settings
+    groq_model: str = "llama-3.3-70b-versatile"  # Fast and capable model
+    use_groq_fallback: bool = True
 
     # Query Settings
     query_timeout: int = 30  # seconds

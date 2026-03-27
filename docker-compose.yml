@@ -26,11 +26,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: graphdb-backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/graphdb
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      LLM_MODEL: claude-haiku-4-5-20251001
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
     ports:
       - "8000:8000"
     depends_on:

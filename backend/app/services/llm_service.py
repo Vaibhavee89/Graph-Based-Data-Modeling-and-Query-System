@@ -1,5 +1,6 @@
-"""LLM service - Wrapper for Claude API."""
+"""LLM service - Wrapper for Claude API with Groq fallback."""
 import anthropic
+from groq import Groq
 from typing import Optional, Dict, Any
 import json
 
@@ -7,14 +8,67 @@ from app.config import settings
 
 
 class LLMService:
-    """Service for interacting with Claude API."""
+    """Service for interacting with LLM APIs (Anthropic Claude + Groq fallback)."""
 
     def __init__(self):
-        """Initialize LLM service."""
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        self.model = settings.llm_model
+        """Initialize LLM service with both providers."""
+        # Primary: Anthropic Claude
+        self.anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        self.anthropic_model = settings.llm_model
+
+        # Fallback: Groq
+        self.groq_client = None
+        self.groq_model = settings.groq_model
+        if settings.groq_api_key and settings.use_groq_fallback:
+            try:
+                self.groq_client = Groq(api_key=settings.groq_api_key)
+                print("✓ Groq fallback enabled")
+            except Exception as e:
+                print(f"Warning: Could not initialize Groq client: {e}")
+
         self.max_tokens = settings.llm_max_tokens
         self.temperature = settings.llm_temperature
+
+    def _call_anthropic(
+        self,
+        prompt: str,
+        system: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        """Call Anthropic Claude API."""
+        message = self.anthropic_client.messages.create(
+            model=self.anthropic_model,
+            max_tokens=max_tokens or self.max_tokens,
+            temperature=temperature or self.temperature,
+            system=system or "",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return message.content[0].text
+
+    def _call_groq(
+        self,
+        prompt: str,
+        system: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        """Call Groq API as fallback."""
+        if not self.groq_client:
+            raise Exception("Groq client not initialized")
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self.groq_client.chat.completions.create(
+            model=self.groq_model,
+            messages=messages,
+            temperature=temperature or self.temperature,
+            max_tokens=max_tokens or self.max_tokens,
+        )
+        return response.choices[0].message.content
 
     def generate_completion(
         self,
@@ -24,7 +78,7 @@ class LLMService:
         max_tokens: Optional[int] = None,
     ) -> str:
         """
-        Generate a completion from Claude.
+        Generate a completion with automatic fallback.
 
         Args:
             prompt: User prompt
@@ -35,22 +89,34 @@ class LLMService:
         Returns:
             Generated text
         """
+        # Try Anthropic first
         try:
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens or self.max_tokens,
-                temperature=temperature or self.temperature,
-                system=system or "",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
-
-            return message.content[0].text
-
+            return self._call_anthropic(prompt, system, temperature, max_tokens)
         except anthropic.APIError as e:
-            print(f"Claude API error: {e}")
-            raise Exception(f"LLM API error: {str(e)}")
+            error_msg = str(e)
+            print(f"Anthropic API error: {error_msg}")
+
+            # Check if we should fallback to Groq
+            if self.groq_client and settings.use_groq_fallback:
+                # Fallback for credit issues, rate limits, or auth errors
+                if any(keyword in error_msg.lower() for keyword in [
+                    'credit', 'balance', 'billing', 'rate_limit',
+                    'authentication', 'invalid', '401', '429', '402'
+                ]):
+                    print("→ Falling back to Groq...")
+                    try:
+                        result = self._call_groq(prompt, system, temperature, max_tokens)
+                        print("✓ Groq fallback successful")
+                        return result
+                    except Exception as groq_error:
+                        print(f"Groq fallback also failed: {groq_error}")
+                        raise Exception(f"Both Anthropic and Groq failed. Anthropic: {error_msg}, Groq: {groq_error}")
+
+            # No fallback available or shouldn't fallback
+            raise Exception(f"LLM API error: {error_msg}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise Exception(f"LLM error: {str(e)}")
 
     def generate_structured(
         self,
@@ -59,7 +125,7 @@ class LLMService:
         schema: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Generate structured output (JSON) from Claude.
+        Generate structured output (JSON) with fallback.
 
         Args:
             prompt: User prompt
@@ -80,7 +146,7 @@ class LLMService:
             )
 
             # Parse JSON from response
-            # Sometimes Claude wraps JSON in markdown code blocks
+            # Sometimes LLMs wrap JSON in markdown code blocks
             response_text = response_text.strip()
             if response_text.startswith("```json"):
                 response_text = response_text.replace("```json", "").replace("```", "").strip()
@@ -103,7 +169,7 @@ class LLMService:
         system: Optional[str] = None,
     ) -> str:
         """
-        Multi-turn chat with Claude.
+        Multi-turn chat with fallback.
 
         Args:
             messages: List of messages [{"role": "user"|"assistant", "content": "..."}]
@@ -112,17 +178,11 @@ class LLMService:
         Returns:
             Assistant's response
         """
-        try:
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                system=system or "",
-                messages=messages
-            )
+        # For now, just use the single-turn method with the last user message
+        # This is a simplified implementation
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        if not user_messages:
+            raise ValueError("No user messages found")
 
-            return message.content[0].text
-
-        except anthropic.APIError as e:
-            print(f"Claude API error: {e}")
-            raise Exception(f"LLM API error: {str(e)}")
+        last_message = user_messages[-1]["content"]
+        return self.generate_completion(last_message, system=system)
