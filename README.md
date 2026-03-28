@@ -171,6 +171,61 @@ npm run dev
 - **Search** - Filter and highlight nodes
 - **Pan & Zoom** - Navigate large graphs
 
+## Documentation
+
+### 📚 Complete Guides
+
+- **[USER_FLOW.md](docs/USER_FLOW.md)** - Complete user flow guide covering all interactions
+  - Setup flow (first-time installation)
+  - Daily usage patterns
+  - Data integration workflows
+  - Graph exploration features
+  - Query processing pipeline
+  - Advanced features
+  - Troubleshooting guide
+
+- **[USER_FLOW_DIAGRAM.md](docs/USER_FLOW_DIAGRAM.md)** - Visual flowcharts and diagrams
+  - Main application flow
+  - Query processing pipeline (step-by-step)
+  - Data integration flow
+  - Graph interaction flow
+  - Troubleshooting decision tree
+  - Performance benchmarks
+
+### 🔌 Integration Guides
+
+- **[QUICK_START_CUSTOM_DATA.md](docs/QUICK_START_CUSTOM_DATA.md)** - Get started with your data in 10 minutes
+  - 4 common scenarios with step-by-step instructions
+  - CSV files, existing databases, APIs, real-time sync
+
+- **[DATA_INTEGRATION_GUIDE.md](docs/DATA_INTEGRATION_GUIDE.md)** - Comprehensive integration guide
+  - All supported databases (MySQL, SQLite, SQL Server, Oracle, etc.)
+  - REST API integration (Salesforce, SAP, custom APIs)
+  - Real-time sync patterns (polling, webhooks, database triggers)
+  - Field mapping examples
+  - Troubleshooting section
+
+- **[CUSTOM_SCHEMA_GUIDE.md](docs/CUSTOM_SCHEMA_GUIDE.md)** - Extend system for your domain
+  - E-commerce example (Store, Review, Cart entities)
+  - Healthcare example (Patient, Doctor, Appointment entities)
+  - Supply Chain example (Supplier, Warehouse, Shipment entities)
+  - Step-by-step customization instructions
+
+### 🚀 Deployment & Testing
+
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+  - Docker deployment (complete)
+  - Railway backend deployment
+  - Vercel frontend deployment
+  - Environment configuration
+  - CI/CD setup
+
+- **[TESTING.md](docs/TESTING.md)** - Testing documentation
+  - 48 backend tests (90% coverage)
+  - 13 frontend tests (75% coverage)
+  - Performance optimizations
+  - Database indexes
+
 ## Development
 
 ### Backend Development
