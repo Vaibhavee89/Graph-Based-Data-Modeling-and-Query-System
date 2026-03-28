@@ -8,6 +8,47 @@ A complete system that unifies fragmented business data into an interactive grap
 
 *Graph visualization with interactive node exploration, entity details panel, and AI-powered chat interface*
 
+## 🚀 Quick Start
+
+### Local Development (Docker)
+
+```bash
+# 1. Clone and configure
+git clone <repo-url>
+cd "Graph Based Data Modelling and Query System"
+
+# 2. Configure environment
+cd backend && cp .env.example .env
+# Add your ANTHROPIC_API_KEY or GROQ_API_KEY in .env
+
+cd ../frontend && echo "VITE_API_URL=http://localhost:8000" > .env
+
+# 3. Start everything
+cd .. && docker-compose up -d
+
+# 4. Load sample data
+docker-compose exec backend python scripts/load_sample_data.py
+
+# 5. Access app at http://localhost:3000
+```
+
+⏱️ **Time:** 7 minutes | **See:** [Complete Setup Guide](docs/USER_FLOW.md#setup-flow-first-time)
+
+### Production Deployment (Vercel + Railway)
+
+```bash
+# Option 1: Interactive script
+./scripts/deploy.sh
+
+# Option 2: Manual deployment
+# See detailed guide: docs/PRODUCTION_DEPLOYMENT.md
+# Or use checklist: DEPLOYMENT_CHECKLIST.md
+```
+
+⏱️ **Time:** 30 minutes | **Cost:** $0-20/month | **See:** [Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md)
+
+---
+
 ## Overview
 
 This project converts business data (orders, deliveries, invoices, payments, customers, products, addresses) into an interconnected graph with:
@@ -299,19 +340,32 @@ VITE_API_URL=http://localhost:8000
 
 ## Deployment
 
-### Railway (Backend + Database)
+### 🚀 Quick Deploy
 
-1. Create new project on Railway
-2. Add PostgreSQL database
-3. Deploy backend with `railway.json`
-4. Set environment variables
+**Automated Script:**
+```bash
+./scripts/deploy.sh
+# Interactive menu for backend, frontend, or both
+```
 
-### Vercel (Frontend)
+**Manual Deployment:**
 
-1. Connect GitHub repository
-2. Set build command: `npm run build`
-3. Set environment variable: `VITE_API_URL`
-4. Deploy
+1. **Backend (Railway):** [Detailed Guide](docs/PRODUCTION_DEPLOYMENT.md#part-1-deploy-backend-to-railway-15-minutes)
+   - Deploy from GitHub
+   - Add PostgreSQL database
+   - Set environment variables
+   - Load data and build graph
+
+2. **Frontend (Vercel):** [Detailed Guide](docs/PRODUCTION_DEPLOYMENT.md#part-2-deploy-frontend-to-vercel-10-minutes)
+   - Connect GitHub repository
+   - Set `VITE_API_URL` environment variable
+   - Auto-deploy on push
+
+**Resources:**
+- 📖 [Complete Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md) - Step-by-step (30 min)
+- ✅ [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Printable checklist
+- 💰 **Cost:** $0-20/month (Railway free trial + Vercel free tier)
+- ⚡ **Result:** Live production app with auto-deployments
 
 ## Architecture
 
