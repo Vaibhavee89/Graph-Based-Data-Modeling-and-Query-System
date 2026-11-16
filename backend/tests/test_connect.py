@@ -163,3 +163,16 @@ def test_postgres_read_only_settings_are_committed():
     assert "SET default_transaction_read_only = on" in statements
     assert any(s.startswith("SET statement_timeout") for s in statements)
     conn.commit.assert_called_once()
+
+
+@pytest.mark.parametrize("url", [
+    # exactly what Neon's dashboard gives you
+    "postgresql://user:pw@ep-cool-123.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    # Supabase pooler
+    "postgresql://postgres.abcdefgh:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+    "postgresql://user:pw@host.example.com:5432/db?sslmode=require",
+])
+def test_hosted_postgres_connection_strings_are_accepted(url, monkeypatch):
+    monkeypatch.setattr(settings, "allow_private_hosts", True)   # skip DNS for made-up hosts
+    parsed, dialect, backend = parse_and_check(url)
+    assert dialect == "postgres" and backend == "postgresql"

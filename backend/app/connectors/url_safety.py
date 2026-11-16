@@ -28,6 +28,7 @@ ALLOWED_QUERY_KEYS = {
     "charset",
     "sslrootcert",
     "service_name",
+    "channel_binding",
 }
 
 
