@@ -1,10 +1,10 @@
 # SAP O2C Dataset Setup Guide
 
-This guide explains how to use the actual SAP Order-to-Cash (O2C) dataset with the Graph-Based Data Modeling System.
+This guide explains how to load a SAP Order-to-Cash (O2C) JSONL export with the Graph-Based Data Modeling System.
 
 ## Dataset Location
 
-Dataset path: `/Users/vaibhavee/Downloads/sap-o2c-data`
+Point the ETL script at your export folder, e.g.: `/path/to/sap-o2c-data`
 
 ## Dataset Structure
 
@@ -79,7 +79,7 @@ python scripts/init_db.py
 ### 4. Run SAP O2C ETL Pipeline
 
 ```bash
-python scripts/etl_sap_o2c.py "/Users/vaibhavee/Downloads/sap-o2c-data"
+python scripts/etl_sap_o2c.py "/path/to/sap-o2c-data"
 ```
 
 **Expected Output:**
@@ -219,10 +219,10 @@ The ETL script creates these relationships:
 **Solution:**
 ```bash
 # Verify directory exists
-ls -la "/Users/vaibhavee/Downloads/sap-o2c-data"
+ls -la "/path/to/sap-o2c-data"
 
 # Check for JSONL files
-find "/Users/vaibhavee/Downloads/sap-o2c-data" -name "*.jsonl" | head -10
+find "/path/to/sap-o2c-data" -name "*.jsonl" | head -10
 ```
 
 ### Issue: Foreign key violations

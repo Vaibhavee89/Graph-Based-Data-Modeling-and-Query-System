@@ -237,8 +237,7 @@ Cleaned and validated CSV files ready for database loading:
 If you don't have real data, you can generate sample data:
 
 ```bash
-python backend/scripts/download_dataset.py
-# Select option 1 to create sample data
+python backend/scripts/load_sample_data.py
 ```
 
 This generates:

@@ -47,6 +47,19 @@ docker-compose exec backend python scripts/load_sample_data.py
 
 ⏱️ **Time:** 30 minutes | **Cost:** $0-20/month | **See:** [Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md)
 
+### Try it live with your own database
+
+Once the app is running (locally or on a shared URL), click **Connect your database** in the top bar:
+
+1. Pick your database type: PostgreSQL, MySQL/MariaDB, SQL Server or Oracle.
+2. Paste a connection URL, e.g. `postgresql://user:password@host:5432/dbname`.
+3. The app reads your schema and draws it as a graph (rows are nodes, foreign keys are edges).
+4. Ask questions in plain English in the chat panel. Answers come from read-only SQL run against your data.
+
+Use a **read-only database user**; the database must be reachable from wherever the app runs.
+Connections are held in server memory for a short time and never stored.
+Details, supported URL formats and safety notes: [docs/SHARING_PROTOTYPE.md](docs/SHARING_PROTOTYPE.md).
+
 ---
 
 ## Overview
@@ -90,7 +103,7 @@ This project converts business data (orders, deliveries, invoices, payments, cus
 │   │   ├── routers/             # API endpoints
 │   │   ├── core/                # Database & graph store
 │   │   └── utils/               # Graph builder utilities
-│   ├── scripts/                 # ETL, database init, dataset download
+│   ├── scripts/                 # ETL, database init, sample data
 │   ├── tests/                   # Backend tests
 │   └── requirements.txt         # Python dependencies
 ├── frontend/
@@ -160,18 +173,24 @@ npm install
 cp .env.example .env
 ```
 
-### 4. Load Data (Optional - requires dataset)
+### 4. Load Data (Optional)
+
+You can skip this and use **Connect your database** in the UI instead. To load the built-in demo
+graph, use one of:
 
 ```bash
 cd ../backend
 
-# Download dataset (requires Google Drive link)
-python scripts/download_dataset.py
+# Generate a small sample dataset and load it
+python scripts/load_sample_data.py
 
-# Run ETL pipeline
+# Or load your own CSV files from data/raw/ (see data/README.md for the format)
 python scripts/etl.py
 
-# Build graph
+# Or load a SAP Order-to-Cash JSONL export (see SAP_O2C_SETUP.md)
+python scripts/etl_sap_o2c.py /path/to/sap-o2c-data
+
+# Then build the graph
 python scripts/build_graph.py
 ```
 
