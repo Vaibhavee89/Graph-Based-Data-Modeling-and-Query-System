@@ -7,6 +7,8 @@ from sqlalchemy import text
 
 from app.services.llm_service import LLMService
 from app.services.guardrail_service import GuardrailService
+from app.config import settings
+from app.utils.sql_safety import validate_sql
 from app.schemas.query import QueryResponse, IntentClassification
 
 
@@ -210,13 +212,12 @@ Return JSON:
             print(f"Generated SQL: {sql}")
             print(f"Explanation: {explanation}")
 
-            # Validate SQL (basic safety check)
-            if not self._is_safe_sql(sql):
-                raise Exception("Generated SQL failed safety validation")
+            # Validate: single read-only SELECT over known tables, capped LIMIT
+            safe_sql, error = validate_sql(sql, max_limit=settings.max_query_results)
+            if error:
+                raise Exception(f"Generated SQL failed safety validation: {error}")
 
-            # Execute SQL
-            query_result = self.db.execute(text(sql))
-            rows = query_result.fetchall()
+            rows = self._execute_read_only(safe_sql)
 
             # Format results
             data = [dict(row._mapping) for row in rows]
@@ -526,18 +527,14 @@ Tables:
 - addresses (address_id, customer_id, street, city, state, country, address_type)
 """
 
-    def _is_safe_sql(self, sql: str) -> bool:
-        """Validate SQL is safe (read-only)."""
-        sql_upper = sql.upper().strip()
-
-        # Must start with SELECT
-        if not sql_upper.startswith('SELECT'):
-            return False
-
-        # Disallow dangerous keywords
-        dangerous = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE', 'GRANT', 'REVOKE']
-        for keyword in dangerous:
-            if keyword in sql_upper:
-                return False
-
-        return True
+    def _execute_read_only(self, sql: str):
+        """Run a validated query in a read-only transaction with a timeout."""
+        try:
+            if self.db.bind.dialect.name == "postgresql":
+                self.db.execute(text("SET TRANSACTION READ ONLY"))
+                timeout_ms = int(settings.query_timeout) * 1000
+                self.db.execute(text(f"SET LOCAL statement_timeout = {timeout_ms}"))
+            return self.db.execute(text(sql)).fetchall()
+        finally:
+            # Always end the transaction so the settings never leak to the pool
+            self.db.rollback()
