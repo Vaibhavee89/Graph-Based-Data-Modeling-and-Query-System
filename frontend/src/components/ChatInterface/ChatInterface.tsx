@@ -198,17 +198,16 @@ export default function ChatInterface() {
                 Start a Conversation
               </h3>
               <p className="text-sm text-gray-600 mb-6">
-                Ask questions about customers, orders, products, invoices, payments, and deliveries.
-                I'll help you analyze your business data.
+                Ask questions about your data in plain English. I'll write a read-only query,
+                run it, and show the results.
               </p>
               <div className="space-y-2 text-left bg-white rounded-lg p-4 border border-gray-200">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Try asking:</p>
                 <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• "How many rows are in each table?"</li>
+                  <li>• "Show the top 10 records by total amount"</li>
                   <li>• "Which customers have the most orders?"</li>
-                  <li>• "Show me top 5 products by revenue"</li>
-                  <li>• "Trace the flow of invoice INV-123"</li>
-                  <li>• "Find orders with incomplete flows"</li>
-                  <li>• "Show me customer 310000108"</li>
+                  <li>• "List the most recent entries"</li>
                 </ul>
               </div>
             </div>

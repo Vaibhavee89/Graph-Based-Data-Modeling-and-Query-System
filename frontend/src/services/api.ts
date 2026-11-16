@@ -2,6 +2,7 @@
  * API service for communicating with the backend
  */
 import axios, { AxiosInstance } from 'axios';
+import { useSessionStore } from '@/stores/sessionStore';
 import type {
   GraphData,
   GraphOverview,
@@ -22,10 +23,21 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
+// Send the connection session (if any) with every request
+apiClient.interceptors.request.use((config) => {
+  const session = useSessionStore.getState().session;
+  if (session) config.headers.set('X-Session-Id', session.sessionId);
+  return config;
+});
+
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Session expired on the server: drop it so the UI asks the user to reconnect
+    if (error?.response?.status === 401 && useSessionStore.getState().session) {
+      useSessionStore.getState().setSession(null);
+    }
     console.error('API Error:', error);
     return Promise.reject(error);
   }
@@ -117,6 +129,40 @@ export const queryAPI = {
   chat: async (query: string): Promise<QueryResponse> => {
     const response = await apiClient.post('/api/query/chat', { query });
     return response.data;
+  },
+};
+
+// Connect to a user-supplied database
+export interface ConnectConfig {
+  access_code_required: boolean;
+  supported: string[];
+  session_ttl_minutes: number;
+}
+
+export const connectAPI = {
+  getConfig: async (): Promise<ConnectConfig> => {
+    const response = await apiClient.get('/api/connect/config');
+    return response.data;
+  },
+
+  connect: async (url: string, accessCode?: string) => {
+    const response = await apiClient.post(
+      '/api/connect',
+      { url },
+      { headers: accessCode ? { 'X-Access-Code': accessCode } : {}, timeout: 120000 }
+    );
+    return response.data as {
+      session_id: string;
+      dialect: string;
+      database: string;
+      tables: number;
+      nodes: number;
+      edges: number;
+    };
+  },
+
+  disconnect: async (): Promise<void> => {
+    await apiClient.delete('/api/connect');
   },
 };
 

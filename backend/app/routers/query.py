@@ -1,9 +1,13 @@
 """Query API router."""
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.graph_store import get_graph
+from app.connectors.query import GenericQueryService
+from app.connectors.sessions import sessions
 from app.core.rate_limit import rate_limit_chat
 from app.services.query_service import QueryService
 from app.schemas.query import QueryRequest, QueryResponse
@@ -13,11 +17,33 @@ router = APIRouter()
 
 
 def get_query_service(
-    db: Session = Depends(get_db)
-) -> QueryService:
-    """Get query service instance."""
-    graph = get_graph()
-    return QueryService(db, graph)
+    x_session_id: Optional[str] = Header(default=None),
+):
+    """Query service for the caller's connected database, or the default demo database."""
+    if x_session_id:
+        session = sessions.get(x_session_id)
+        if session is None:
+            raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
+        return GenericQueryService(session)
+    db = next(get_db())
+    try:
+        return DemoQueryServiceHandle(QueryService(db, get_graph()), db)
+    except Exception:
+        db.close()
+        raise
+
+
+class DemoQueryServiceHandle:
+    """Closes the demo DB session once the query has run."""
+
+    def __init__(self, service: QueryService, db: Session):
+        self._service, self._db = service, db
+
+    def process_query(self, query: str):
+        try:
+            return self._service.process_query(query)
+        finally:
+            self._db.close()
 
 
 @router.post("/chat", response_model=QueryResponse, dependencies=[Depends(rate_limit_chat)])

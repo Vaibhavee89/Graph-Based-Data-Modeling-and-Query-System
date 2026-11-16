@@ -1,5 +1,6 @@
 """Guardrail service - Validates queries are domain-related."""
 import logging
+from typing import Optional
 
 from app.services.llm_service import LLMService
 from app.schemas.query import GuardrailResult
@@ -14,7 +15,7 @@ class GuardrailService:
         """Initialize guardrail service."""
         self.llm = LLMService()
 
-    def validate_query(self, query: str) -> GuardrailResult:
+    def validate_query(self, query: str, domain_description: Optional[str] = None) -> GuardrailResult:
         """
         Validate if query is related to business data domain.
 
@@ -49,12 +50,31 @@ The system contains data about:
 
 Your job is to determine if a user query is related to this business domain."""
 
+        if domain_description:
+            system_prompt = (
+                "You are a domain validator for a data analysis system.\n\n"
+                "The connected database contains these tables:\n"
+                f"{domain_description}\n\n"
+                "Your job is to determine if a user query can be answered from this data."
+            )
+
+        topic = (
+            "the data in the connected database described above"
+            if domain_description
+            else "business data analysis (customers, orders, products, invoices, payments, deliveries)"
+        )
+        entities = (
+            "the tables described above"
+            if domain_description
+            else "customers, orders, products, invoices, payments, deliveries"
+        )
+
         validation_prompt = f"""User query: "{query}"
 
-Is this query related to business data analysis (customers, orders, products, invoices, payments, deliveries)?
+Is this query related to {topic}?
 
 Consider related:
-- Questions about entities (customers, orders, products, invoices, payments, deliveries)
+- Questions about entities ({entities})
 - Requests to find, list, count, or analyze data
 - Questions about relationships (which customer has most orders, trace invoice flow, etc.)
 - Requests for statistics or aggregations

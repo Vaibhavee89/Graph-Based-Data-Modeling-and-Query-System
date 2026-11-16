@@ -3,14 +3,8 @@
  */
 
 // Node types
-export type NodeType =
-  | 'Customer'
-  | 'Product'
-  | 'Order'
-  | 'Delivery'
-  | 'Invoice'
-  | 'Payment'
-  | 'Address';
+// Table/entity name; arbitrary when connected to a user's database
+export type NodeType = string;
 
 // Graph node
 export interface GraphNode {

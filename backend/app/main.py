@@ -35,6 +35,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Retry-After"],
 )
 
 
@@ -70,6 +71,7 @@ async def root():
 
 
 # Include routers
-from app.routers import graph, query
+from app.routers import connect, graph, query
 app.include_router(graph.router, prefix="/api/graph", tags=["Graph"])
+app.include_router(connect.router, prefix="/api/connect", tags=["Connect"])
 app.include_router(query.router, prefix="/api/query", tags=["Query"])

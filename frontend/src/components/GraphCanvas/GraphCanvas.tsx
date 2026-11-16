@@ -24,6 +24,7 @@ import { Search, Loader2, Download } from 'lucide-react'
 import { graphAPI } from '@/services/api'
 import { getTimestampedFilename } from '@/lib/export'
 import { useGraphStore } from '@/stores/graphStore'
+import { useSessionStore } from '@/stores/sessionStore'
 import CustomNode from './CustomNode'
 import Legend from './Legend'
 import NodeDetailsPanel from '../NodeDetails/NodeDetailsPanel'
@@ -55,18 +56,28 @@ function GraphCanvasInner() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isExpanding, setIsExpanding] = useState(false)
 
-  // Filter state
-  const [filters, setFilters] = useState<GraphFilters>({
-    nodeTypes: new Set(['Customer', 'Product', 'Order', 'Invoice', 'Payment', 'Delivery', 'Address']),
-    edgeTypes: new Set(['PLACED', 'CONTAINS', 'GENERATED', 'PAID_BY', 'RESULTED_IN', 'TO_ADDRESS', 'HAS_ADDRESS']),
-  })
+  const sessionId = useSessionStore((st) => st.session?.sessionId ?? 'demo')
 
-  const availableNodeTypes = ['Customer', 'Product', 'Order', 'Invoice', 'Payment', 'Delivery', 'Address']
-  const availableEdgeTypes = ['PLACED', 'CONTAINS', 'GENERATED', 'PAID_BY', 'RESULTED_IN', 'TO_ADDRESS', 'HAS_ADDRESS']
+  // Entity and relationship types come from the connected database
+  const { data: overview } = useQuery({
+    queryKey: ['graph-overview', sessionId],
+    queryFn: () => graphAPI.getOverview(),
+  })
+  const availableNodeTypes = useMemo(() => Object.keys(overview?.node_types ?? {}).sort(), [overview])
+  const availableEdgeTypes = useMemo(() => Object.keys(overview?.edge_types ?? {}).sort(), [overview])
+
+  // Filter state: start with everything visible, and re-seed when the available types change
+  const [filters, setFilters] = useState<GraphFilters>({
+    nodeTypes: new Set(),
+    edgeTypes: new Set(),
+  })
+  useEffect(() => {
+    setFilters({ nodeTypes: new Set(availableNodeTypes), edgeTypes: new Set(availableEdgeTypes) })
+  }, [availableNodeTypes, availableEdgeTypes])
 
   // Fetch initial nodes
   const { data: initialNodes, isLoading } = useQuery({
-    queryKey: ['graph-nodes'],
+    queryKey: ['graph-nodes', sessionId],
     queryFn: () => graphAPI.getNodes({ limit: 100 }),
     staleTime: 5 * 60 * 1000,
   })

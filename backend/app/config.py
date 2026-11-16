@@ -40,6 +40,16 @@ class Settings(BaseSettings):
     max_expansion_depth: int = 2
     graph_pickle_path: str = "backend/graph.pickle"
 
+    # Bring-your-own-database connections
+    access_code: Optional[str] = None           # if set, required to open a connection
+    allow_private_hosts: bool = False           # allow localhost / private IPs (local dev only)
+    allow_sqlite_connections: bool = False      # sqlite URLs read server-side files (local dev/tests only)
+    session_ttl_minutes: int = 30
+    max_sessions: int = 20
+    max_tables: int = 100
+    max_rows_per_table: int = 200
+    max_graph_nodes: int = 5000
+
     # CORS
     cors_origins: Union[list[str], str] = ["http://localhost:5173", "http://localhost:3000"]
 

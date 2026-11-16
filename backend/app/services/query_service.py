@@ -536,7 +536,7 @@ Tables:
                 self.db.execute(text("SET TRANSACTION READ ONLY"))
                 timeout_ms = int(settings.query_timeout) * 1000
                 self.db.execute(text(f"SET LOCAL statement_timeout = {timeout_ms}"))
-            return self.db.execute(text(sql)).fetchall()
+            return self.db.execute(text(sql.replace(":", "\\:"))).fetchall()
         finally:
             # Always end the transaction so the settings never leak to the pool
             self.db.rollback()

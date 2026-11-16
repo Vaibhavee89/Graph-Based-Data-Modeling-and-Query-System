@@ -16,21 +16,35 @@ BLOCKED_FUNCTIONS: Set[str] = {
     "lo_export", "lo_get", "dblink", "dblink_exec", "set_config",
     "current_setting", "pg_terminate_backend", "pg_cancel_backend",
     "pg_reload_conf", "query_to_xml", "table_to_xml", "xpath",
+    # MySQL / MariaDB
+    "sleep", "benchmark", "load_file", "get_lock", "release_lock",
+    # SQL Server
+    "xp_cmdshell", "openrowset", "openquery", "opendatasource", "sp_executesql",
+    "waitfor", "xp_dirtree", "xp_fileexist",
+    # Oracle
+    "utl_http", "utl_file", "utl_inaddr", "utl_smtp", "dbms_pipe", "dbms_lock",
+    "dbms_scheduler", "dbms_java", "dbms_xmlgen", "dbms_random_sleep",
 }
 
 
-def validate_sql(sql: str, max_limit: int = 1000) -> Tuple[Optional[str], Optional[str]]:
+def validate_sql(
+    sql: str,
+    max_limit: int = 1000,
+    dialect: str = "postgres",
+    allowed_tables: Optional[Set[str]] = None,
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Validate and normalise a generated query.
 
     Returns (safe_sql, error). On success error is None and safe_sql is the
     re-rendered query with a LIMIT no greater than max_limit.
     """
+    allowed = {t.lower() for t in allowed_tables} if allowed_tables is not None else ALLOWED_TABLES
     if not sql or not sql.strip():
         return None, "Empty SQL"
 
     try:
-        statements = sqlglot.parse(sql, read="postgres")
+        statements = sqlglot.parse(sql, read=dialect)
     except sqlglot.errors.ParseError as e:
         return None, f"SQL could not be parsed: {e}"
 
@@ -61,7 +75,7 @@ def validate_sql(sql: str, max_limit: int = 1000) -> Tuple[Optional[str], Option
         name = table.name.lower()
         if table.db or table.catalog:
             return None, f"Schema-qualified table '{table.sql()}' is not allowed"
-        if name not in ALLOWED_TABLES and name not in cte_names:
+        if name not in allowed and name not in cte_names and name != "dual":
             return None, f"Table '{name}' is not allowed"
 
     for func in tree.find_all(exp.Func):
@@ -74,7 +88,8 @@ def validate_sql(sql: str, max_limit: int = 1000) -> Tuple[Optional[str], Option
     if isinstance(tree, exp.Select):
         current = None
         if limit_node is not None:
-            expr = limit_node.expression
+            # LIMIT/TOP use .expression; Oracle's FETCH FIRST n ROWS uses .args["count"]
+            expr = limit_node.args.get("count") if isinstance(limit_node, exp.Fetch) else limit_node.expression
             if isinstance(expr, exp.Literal) and expr.is_int:
                 current = int(expr.name)
         if current is None or current > max_limit:
@@ -82,4 +97,4 @@ def validate_sql(sql: str, max_limit: int = 1000) -> Tuple[Optional[str], Option
     else:
         tree = exp.select("*").from_(tree.subquery("q")).limit(max_limit)
 
-    return tree.sql(dialect="postgres"), None
+    return tree.sql(dialect=dialect), None

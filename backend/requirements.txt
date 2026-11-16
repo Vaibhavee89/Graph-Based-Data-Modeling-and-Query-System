@@ -6,6 +6,11 @@ python-multipart==0.0.6
 # Database
 sqlalchemy==2.0.25
 psycopg2-binary==2.9.9
+# Drivers for bring-your-own-database connections
+pymysql==1.1.1
+pymssql==2.3.2
+oracledb==2.5.1
+cryptography>=42
 alembic==1.13.1
 
 # SQL validation
