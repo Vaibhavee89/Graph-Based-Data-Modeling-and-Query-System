@@ -62,16 +62,20 @@ xdg-open htmlcov/index.html
 start htmlcov/index.html
 ```
 
-**Target Coverage:** >80%
+Coverage is not enforced; run with `--cov=app` to see it.
 
 ### Test Files
 
 ```
 backend/tests/
 ├── conftest.py                    # Fixtures and test configuration
-├── test_graph_service.py          # Unit tests for GraphService (25 tests)
-├── test_guardrail_service.py      # Unit tests for GuardrailService (8 tests)
-├── test_graph_api.py              # Integration tests for graph API (15 tests)
+├── test_sql_safety.py             # SQL validation, injection attempts, row caps (23 tests)
+├── test_connect.py                # Connecting, sessions, URL safety, access code (17 tests)
+├── test_graph_service.py          # Unit tests for GraphService (18 tests)
+├── test_graph_api.py              # Integration tests for the graph API (14 tests)
+├── test_guardrail_service.py      # Unit tests for GuardrailService (7 tests)
+├── test_rate_limit_and_errors.py  # Rate limits, error redaction, LLM provider choice (7 tests)
+├── test_sample_data.py            # Built-in sample dataset and entity focus (7 tests)
 └── __init__.py
 ```
 

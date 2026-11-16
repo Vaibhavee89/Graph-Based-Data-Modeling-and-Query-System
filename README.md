@@ -1,469 +1,172 @@
-# Graph-Based Data Modeling and Query System
+# Graph Query: ask your SQL database questions and see it as a graph
 
-A complete system that unifies fragmented business data into an interactive graph with an LLM-powered natural language query interface.
+Connect a PostgreSQL or MySQL database, see its tables and foreign keys as an interactive graph, and ask questions in plain English. An LLM writes the SQL; a safety layer makes sure only read-only queries on your own tables ever run.
 
-## Screenshot
+**[Live demo](https://graph-query-system-eight.vercel.app)** · loads with sample data, nothing to install. If it is slow the first time, the free-tier backend is waking up; give it a minute.
 
-![Application Screenshot](docs/images/app-screenshot.png)
+![Application screenshot: graph with a selected order, its connections highlighted, and the chat answering a question](docs/images/app-screenshot.png)
 
-*Graph visualization with interactive node exploration, entity details panel, and AI-powered chat interface*
+## What it does
 
-## 🚀 Quick Start
+- **Any relational database becomes a graph.** Rows are nodes, foreign keys are edges. The schema is read at connection time, so there is no per-database setup.
+- **Natural-language questions.** "Which orders have no invoice?" becomes a validated SQL query, runs read-only, and the answer comes back as a table.
+- **Answers link back to the graph.** Click an ID in an answer and the graph jumps to that row and highlights its connections.
+- **Explore by hand.** Click a node for its details, expand its connections, search, and filter by table or relationship.
+- **Bring your own data.** Paste a connection URL in the browser. Your data replaces the built-in sample in your view; nothing is ever written to your database.
 
-### Local Development (Docker)
+![Connect dialog](docs/images/connect-dialog.png)
+
+## How it works
+
+```
+Browser (React, React Flow)  ──HTTPS──▶  FastAPI backend  ──read-only──▶  your database
+   graph canvas + chat                    │  schema → graph (NetworkX)      (Postgres / MySQL)
+                                          │  question → LLM → SQL
+                                          └─ SQL safety layer, sessions, rate limits
+```
+
+1. **Connect.** The backend validates the URL, opens a short-lived read-only session, and reads tables, columns, primary keys and foreign keys.
+2. **Graph.** It samples rows from each table (best-connected tables first), pulls in the rows those rows point to, and builds a graph from the foreign keys.
+3. **Ask.** Your question and the schema go to the LLM, which returns a SQL query.
+4. **Check.** The query is parsed in the database's own dialect and rejected unless it is a single `SELECT` over known tables.
+5. **Run.** It executes in a read-only session with a timeout and a row cap, and the result is returned with links back to graph nodes.
+
+## Safety
+
+Running model-written SQL against someone's database needs several independent layers:
+
+| Layer | What it does |
+|---|---|
+| SQL validation | Parsed with `sqlglot` in the target dialect. One statement, `SELECT` only, known tables only, no `INTO` or locking, and file, sleep and network functions blocked. A row limit is always enforced. |
+| Read-only sessions | PostgreSQL `default_transaction_read_only`, MySQL `READ ONLY`, SQLite `query_only`, Oracle read-only transactions. A statement timeout is set where the database supports it. |
+| Connection URLs | Only known database types. Private, loopback and cloud-metadata addresses are refused (SSRF protection), and unknown connection options are rejected. |
+| Access control | An optional shared access code protects the "connect your own database" feature. |
+| Abuse limits | Per-client rate limits on questions and on connection attempts, a question length cap, and a cap on concurrent sessions. |
+| Data handling | Connection URLs are held in server memory for a limited time and are never stored or logged. Error messages never include driver details. |
+
+A read-only database user is still the strongest protection, and the app tells users to use one.
+
+## Tech stack
+
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy, NetworkX, sqlglot
+- **LLM:** Anthropic Claude or Groq (either works; Groq alone is enough)
+- **Frontend:** React, TypeScript, React Flow, Zustand, TanStack Query, Tailwind CSS, Vite
+- **Hosting:** Vercel (frontend) and Render (backend, Docker)
+
+## Try it
+
+### Live
+
+Open the [demo](https://graph-query-system-eight.vercel.app). Click **Connect your database** to use your own (it must be reachable from the internet; for hosted Postgres add `?sslmode=require`).
+
+### Run locally
+
+Needs Python 3.11+ and Node 20.19+ (or 22+).
 
 ```bash
-# 1. Clone and configure
-git clone <repo-url>
-cd "Graph Based Data Modelling and Query System"
-
-# 2. Configure environment
-cd backend && cp .env.example .env
-# Add your ANTHROPIC_API_KEY or GROQ_API_KEY in .env (either one is enough)
-
-cd ../frontend && echo "VITE_API_URL=http://localhost:8000" > .env
-
-# 3. Start everything
-cd .. && docker-compose up -d
-
-# 4. Load sample data
-docker-compose exec backend python scripts/load_sample_data.py
-
-# 5. Access app at http://localhost:3000
-```
-
-⏱️ **Time:** 7 minutes | **See:** [Complete Setup Guide](docs/USER_FLOW.md#setup-flow-first-time)
-
-### Production Deployment (Vercel + Railway)
-
-```bash
-# Option 1: Interactive script
-./scripts/deploy.sh
-
-# Option 2: Manual deployment
-# See detailed guide: docs/PRODUCTION_DEPLOYMENT.md
-# Or use checklist: DEPLOYMENT_CHECKLIST.md
-```
-
-⏱️ **Time:** 30 minutes | **Cost:** $0-20/month | **See:** [Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md)
-
-### Built-in sample data
-
-The app starts with a small sample dataset (customers, products, orders, invoices, payments,
-deliveries; CSV files in [backend/sample_data/](backend/sample_data/)) so you can explore it straight away.
-It is loaded into an in-memory, read-only database and is never modified.
-When you connect your own database, **your data replaces the sample in your view**; disconnecting brings the
-sample back. Nothing is ever written to your database. Regenerate the CSVs with
-`python backend/scripts/generate_sample_csvs.py`.
-
-### Try it live with your own database
-
-Once the app is running (locally or on a shared URL), click **Connect your database** in the top bar:
-
-1. Pick your database type: PostgreSQL, MySQL/MariaDB, SQL Server or Oracle.
-2. Paste a connection URL, e.g. `postgresql://user:password@host:5432/dbname`.
-3. The app reads your schema and draws it as a graph (rows are nodes, foreign keys are edges).
-4. Ask questions in plain English in the chat panel. Answers come from read-only SQL run against your data.
-
-Use a **read-only database user**; the database must be reachable from wherever the app runs.
-Connections are held in server memory for a short time and never stored.
-Details, supported URL formats and safety notes: [docs/SHARING_PROTOTYPE.md](docs/SHARING_PROTOTYPE.md).
-
----
-
-## Overview
-
-This project converts business data (orders, deliveries, invoices, payments, customers, products, addresses) into an interconnected graph with:
-
-- **Interactive Graph Visualization** - Explore entity relationships with node expansion and metadata inspection
-- **Natural Language Queries** - Ask questions using plain English, powered by Claude AI
-- **Flow Tracing** - Trace complete order → invoice → payment flows
-- **Anomaly Detection** - Identify broken or incomplete business flows
-- **Data-backed Answers** - All responses grounded in actual data with guardrails
-
-## Tech Stack
-
-### Backend
-- **FastAPI** - Modern async Python web framework
-- **PostgreSQL** - Relational database for data persistence
-- **NetworkX** - In-memory graph operations
-- **SQLAlchemy** - ORM for database access
-- **Claude API (Haiku)** - LLM for natural language understanding
-- **LangChain** - LLM framework with guardrails
-
-### Frontend
-- **React + TypeScript** - Type-safe UI framework
-- **React Flow** - Graph visualization
-- **Tailwind CSS** - Utility-first styling
-- **Zustand** - State management
-- **TanStack Query** - Server state & caching
-
-## Project Structure
-
-```
-.
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI application
-│   │   ├── config.py            # Configuration settings
-│   │   ├── models/              # SQLAlchemy ORM models (7 entities)
-│   │   ├── schemas/             # Pydantic schemas
-│   │   ├── services/            # Business logic (graph, query, guardrail)
-│   │   ├── routers/             # API endpoints
-│   │   ├── core/                # Database & graph store
-│   │   └── utils/               # Graph builder utilities
-│   ├── scripts/                 # ETL, database init, sample data
-│   ├── tests/                   # Backend tests
-│   └── requirements.txt         # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── components/          # React components (Graph, Chat, Details)
-│   │   ├── services/            # API client
-│   │   ├── stores/              # Zustand state stores
-│   │   ├── types/               # TypeScript types
-│   │   ├── App.tsx              # Main application
-│   │   └── main.tsx             # Entry point
-│   ├── package.json             # Node dependencies
-│   └── vite.config.ts           # Vite configuration
-├── data/
-│   ├── raw/                     # Original CSV files
-│   └── processed/               # Cleaned data
-├── docker-compose.yml           # PostgreSQL service
-└── README.md
-```
-
-## Getting Started
-
-### Prerequisites
-
-- **Python 3.11+**
-- **Node.js 20.19+ (or 22+)**
-- **Docker & Docker Compose** (for PostgreSQL)
-- **Anthropic API Key** (get from https://console.anthropic.com)
-
-### 1. Clone Repository
-
-```bash
-git clone <repository-url>
-cd "Graph Based Data Modelling and Query System"
-```
-
-### 2. Set Up Backend
-
-```bash
-# Start PostgreSQL
-docker-compose up -d postgres
-
-# Create Python virtual environment
+# Backend
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+python3.11 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env        # then set GROQ_API_KEY or ANTHROPIC_API_KEY
+uvicorn app.main:app --reload --port 8000
 
-# Configure environment
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
-
-# Initialize database
-python scripts/init_db.py
-```
-
-### 3. Set Up Frontend
-
-```bash
-cd ../frontend
-
-# Install dependencies
+# Frontend (second terminal)
+cd frontend
 npm install
-
-# Configure environment
-cp .env.example .env
+echo "VITE_API_URL=http://localhost:8000" > .env
+npm run dev                 # http://localhost:5173
 ```
 
-### 4. Load Data (Optional)
+To connect a database on your own machine, add `ALLOW_PRIVATE_HOSTS=true` to `backend/.env` (never on a public deployment).
 
-You can skip this and use **Connect your database** in the UI instead. To load the built-in demo
-graph, use one of:
-
-```bash
-cd ../backend
-
-# Generate a small sample dataset and load it
-python scripts/load_sample_data.py
-
-# Or load your own CSV files from data/raw/ (see data/README.md for the format)
-python scripts/etl.py
-
-# Or load a SAP Order-to-Cash JSONL export (see SAP_O2C_SETUP.md)
-python scripts/etl_sap_o2c.py /path/to/sap-o2c-data
-
-# Then build the graph
-python scripts/build_graph.py
-```
-
-### 5. Run Application
-
-**Terminal 1 - Backend:**
-```bash
-cd backend
-source venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Terminal 2 - Frontend:**
-```bash
-cd frontend
-npm run dev
-```
-
-**Access:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
-## Usage
-
-### Example Queries
-
-1. **Aggregation**: "Which products are associated with the highest number of billing documents?"
-2. **Flow Tracing**: "Trace the full flow of billing document INV-12345"
-3. **Anomaly Detection**: "Identify sales orders that have broken or incomplete flows"
-4. **Entity Lookup**: "Show me details for customer CUST-123"
-
-### Graph Interaction
-
-- **Single Click** - View node details in side panel
-- **Double Click** - Expand node connections
-- **Hover** - Show quick info tooltip
-- **Search** - Filter and highlight nodes
-- **Pan & Zoom** - Navigate large graphs
-
-## Documentation
-
-### 📚 Complete Guides
-
-- **[USER_FLOW.md](docs/USER_FLOW.md)** - Complete user flow guide covering all interactions
-  - Setup flow (first-time installation)
-  - Daily usage patterns
-  - Data integration workflows
-  - Graph exploration features
-  - Query processing pipeline
-  - Advanced features
-  - Troubleshooting guide
-
-- **[USER_FLOW_DIAGRAM.md](docs/USER_FLOW_DIAGRAM.md)** - Visual flowcharts and diagrams
-  - Main application flow
-  - Query processing pipeline (step-by-step)
-  - Data integration flow
-  - Graph interaction flow
-  - Troubleshooting decision tree
-  - Performance benchmarks
-
-### 🔌 Integration Guides
-
-- **[QUICK_START_CUSTOM_DATA.md](docs/QUICK_START_CUSTOM_DATA.md)** - Get started with your data in 10 minutes
-  - 4 common scenarios with step-by-step instructions
-  - CSV files, existing databases, APIs, real-time sync
-
-- **[DATA_INTEGRATION_GUIDE.md](docs/DATA_INTEGRATION_GUIDE.md)** - Comprehensive integration guide
-  - All supported databases (MySQL, SQLite, SQL Server, Oracle, etc.)
-  - REST API integration (Salesforce, SAP, custom APIs)
-  - Real-time sync patterns (polling, webhooks, database triggers)
-  - Field mapping examples
-  - Troubleshooting section
-
-- **[CUSTOM_SCHEMA_GUIDE.md](docs/CUSTOM_SCHEMA_GUIDE.md)** - Extend system for your domain
-  - E-commerce example (Store, Review, Cart entities)
-  - Healthcare example (Patient, Doctor, Appointment entities)
-  - Supply Chain example (Supplier, Warehouse, Shipment entities)
-  - Step-by-step customization instructions
-
-### 🚀 Deployment & Testing
-
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
-  - Docker deployment (complete)
-  - Railway backend deployment
-  - Vercel frontend deployment
-  - Environment configuration
-  - CI/CD setup
-
-- **[TESTING.md](docs/TESTING.md)** - Testing documentation
-  - 48 backend tests (90% coverage)
-  - 13 frontend tests (75% coverage)
-  - Performance optimizations
-  - Database indexes
-
-## Development
-
-### Backend Development
+### Check a database before using the app
 
 ```bash
 cd backend
-
-# Run tests
-pytest tests/ --cov=app
-
-# Format code
-black app/ scripts/
-isort app/ scripts/
-
-# Lint
-flake8 app/ scripts/
+python scripts/check_connection.py "postgresql://user:pass@host:5432/db?sslmode=require"
 ```
 
-### Frontend Development
+It uses the app's own connection code and reports tables found, graph size, and whether writes are blocked. To try the app against a real server, `scripts/seed_sample_database.py` loads the sample dataset into an empty Postgres or MySQL database.
+
+## Testing
 
 ```bash
-cd frontend
-
-# Run tests
-npm test
-
-# Lint
-npm run lint
-
-# Build for production
-npm run build
+cd backend && pytest --no-cov -q        # 93 tests
+cd frontend && npm test -- --run        # 12 tests
+cd frontend && npx tsc --noEmit && npm run lint
 ```
 
-## Graph Model
+The backend tests cover SQL validation (including injection attempts), URL safety, connection and session handling, graph building from foreign keys, rate limiting, error redaction and the sample data. They run against SQLite and mocked LLM calls.
 
-### Node Types (7 Entities)
-- **Customer** (Blue) - customer_id, name, email, segment
-- **Product** (Green) - product_id, name, category, price
-- **Order** (Orange) - order_id, date, status, amount
-- **Delivery** (Purple) - delivery_id, date, status, tracking
-- **Invoice** (Red) - invoice_id, date, amount, status
-- **Payment** (Yellow) - payment_id, date, amount, method
-- **Address** (Gray) - address_id, street, city, state
+PostgreSQL and MySQL were also verified by hand against real servers in Docker: connecting, graph building, questions, and read-only enforcement. Dependency audits (`pip-audit`, `npm audit`) report no known vulnerabilities.
 
-### Relationships
-- Customer → Order (PLACED)
-- Order → Product (CONTAINS, with quantity)
-- Order → Invoice (GENERATED)
-- Order → Delivery (RESULTED_IN)
-- Invoice → Payment (PAID_BY)
-- Customer → Address (HAS_ADDRESS)
-- Delivery → Address (TO_ADDRESS)
+## Project structure
+
+```
+backend/
+  app/
+    connectors/   url_safety, introspect, graph_from_db, sessions, query, demo (sample data)
+    routers/      connect, graph, query
+    services/     graph_service, llm_service, guardrail_service
+    utils/        sql_safety (the SQL validator)
+  sample_data/    CSV files for the built-in sample dataset
+  scripts/        check_connection, seed_sample_database, generate_sample_csvs, ETL helpers
+  tests/
+frontend/src/     components (graph canvas, chat, connect dialog), stores, services, lib
+render.yaml       backend deployment blueprint
+```
+
+## API
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/connect`, `DELETE /api/connect` | Open or close a database session |
+| `GET /api/connect/config` | What the UI needs before showing the connect form |
+| `GET /api/graph/overview` | Node and edge counts by type |
+| `GET /api/graph/starter` | A connected starting view |
+| `GET /api/graph/focus/{id}` | Find a row by ID and return it with its connections |
+| `GET /api/graph/nodes`, `/nodes/{id}`, `/nodes/{id}/neighbors` | Browse nodes |
+| `POST /api/graph/nodes/{id}/expand`, `/search`, `/subgraph` | Expand, search, fetch a subgraph |
+| `POST /api/query/chat` | Ask a question |
+| `GET /health` | Health check |
+
+Interactive docs are served at `/docs`. Requests carry an `X-Session-Id` header for a connected database; without it the built-in sample data is used.
 
 ## Configuration
 
-### Backend (.env)
+Set in `backend/.env` (see `backend/.env.example`):
 
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/graphdb
-ANTHROPIC_API_KEY=your_key_here
-LLM_MODEL=claude-haiku-4-5-20251001
-QUERY_TIMEOUT=30
-INITIAL_NODE_LIMIT=500
-```
-
-### Frontend (.env)
-
-```env
-VITE_API_URL=http://localhost:8000
-```
+| Variable | Purpose |
+|---|---|
+| `GROQ_API_KEY` / `ANTHROPIC_API_KEY` | LLM provider (set at least one) |
+| `ACCESS_CODE` | Require a code to connect your own database |
+| `RATE_LIMIT_PER_MINUTE`, `CONNECT_RATE_LIMIT_PER_MINUTE` | Per-client limits |
+| `MAX_ROWS_PER_TABLE`, `MAX_TABLES`, `MAX_QUERY_RESULTS`, `QUERY_TIMEOUT` | Sampling and query limits |
+| `SESSION_TTL_MINUTES`, `MAX_SESSIONS` | Connection session lifetime and cap |
+| `CORS_ORIGINS` | Allowed frontend origins |
+| `ALLOW_PRIVATE_HOSTS`, `ALLOW_SQLITE_CONNECTIONS` | Local development only |
 
 ## Deployment
 
-### 🚀 Quick Deploy
+The live demo runs the frontend on Vercel and the backend as a Docker container on Render's free tier. Step-by-step instructions, including the environment variables, are in [docs/SHARING_PROTOTYPE.md](docs/SHARING_PROTOTYPE.md). The backend must run as a single process, because connection sessions are kept in memory.
 
-**Automated Script:**
-```bash
-./scripts/deploy.sh
-# Interactive menu for backend, frontend, or both
-```
+## Status and limitations
 
-**Manual Deployment:**
+This is a working prototype, not a hardened production service.
 
-1. **Backend (Railway):** [Detailed Guide](docs/PRODUCTION_DEPLOYMENT.md#part-1-deploy-backend-to-railway-15-minutes)
-   - Deploy from GitHub
-   - Add PostgreSQL database
-   - Set environment variables
-   - Load data and build graph
+- **Databases:** PostgreSQL and MySQL are tested. MariaDB uses the MySQL driver but has not been tested. SQL Server and Oracle are supported in code but untested against real servers.
+- **Schemas:** only the database's default schema is read.
+- **Sampling:** the graph holds a sample of rows per table (200 by default), not the whole database. Questions run against the full database.
+- **Sessions:** kept in memory, so a restart ends them. Scaling out would need a shared store such as Redis.
+- **Free hosting:** the backend sleeps when idle and takes about a minute to wake.
+- **SQL Server** has no session-level read-only mode, so it relies on query validation and a read-only login.
 
-2. **Frontend (Vercel):** [Detailed Guide](docs/PRODUCTION_DEPLOYMENT.md#part-2-deploy-frontend-to-vercel-10-minutes)
-   - Connect GitHub repository
-   - Set `VITE_API_URL` environment variable
-   - Auto-deploy on push
+Ideas for next steps: other schemas, a persistent session store, streaming answers, and query-result charts.
 
-**Resources:**
-- 📖 [Complete Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md) - Step-by-step (30 min)
-- ✅ [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Printable checklist
-- 💰 **Cost:** $0-20/month (Railway free trial + Vercel free tier)
-- ⚡ **Result:** Live production app with auto-deployments
+## More documentation
 
-## Architecture
-
-```
-Frontend (React)          Backend (FastAPI)          Data Layer
-┌──────────────┐         ┌──────────────────┐      ┌──────────┐
-│ Graph Canvas │◄───────►│  Graph Service   │◄────►│ NetworkX │
-│ (React Flow) │         │  Query Service   │      └──────────┘
-│ Chat Interface│         │  Guardrail Svc   │      ┌──────────┐
-└──────────────┘         │  LLM Service     │◄────►│PostgreSQL│
-                         └──────────────────┘      └──────────┘
-                                  │
-                         ┌────────┴────────┐
-                         │  Claude API     │
-                         │  (Haiku)        │
-                         └─────────────────┘
-```
-
-## API Endpoints
-
-### Graph API
-- `GET /api/graph/overview` - Graph statistics
-- `GET /api/graph/nodes` - List nodes (paginated)
-- `GET /api/graph/nodes/{id}` - Get node details
-- `POST /api/graph/nodes/{id}/expand` - Expand connections
-- `POST /api/graph/search` - Search nodes
-
-### Query API
-- `POST /api/query/chat` - Natural language query
-
-### Health
-- `GET /health` - Health check
-- `GET /docs` - Interactive API documentation
-
-## Troubleshooting
-
-### Backend won't start
-- Check PostgreSQL is running: `docker-compose ps`
-- Verify `.env` file exists with correct `DATABASE_URL`
-- Check Python version: `python --version` (should be 3.11+)
-
-### Frontend build errors
-- Clear node_modules: `rm -rf node_modules && npm install`
-- Check Node version: `node --version` (should be 20.19+ or 22+)
-
-### Query errors
-- Verify `ANTHROPIC_API_KEY` is set correctly
-- Check API key has credits: https://console.anthropic.com
-- Review logs: Backend terminal will show detailed errors
-
-### Database connection errors
-- Restart PostgreSQL: `docker-compose restart postgres`
-- Check port 5432 is available: `lsof -i :5432`
-
-## Contributing
-
-Contributions are welcome. To contribute:
-
-1. Create a feature branch
-2. Make changes with tests
-3. Ensure all tests pass
-4. Submit pull request
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Support
-
-For issues and questions:
-- Check logs in backend terminal
-- Review browser console (F12) for frontend errors
-- Check `/docs` endpoint for API documentation
+- [docs/SHARING_PROTOTYPE.md](docs/SHARING_PROTOTYPE.md): deploying and sharing the app
+- [TESTING.md](TESTING.md): running the tests
+- [docs/USER_FLOW.md](docs/USER_FLOW.md): user flows
+- [docs/DATA_INTEGRATION_GUIDE.md](docs/DATA_INTEGRATION_GUIDE.md) and [SAP_O2C_SETUP.md](SAP_O2C_SETUP.md): the original ETL pipeline for loading CSV or SAP exports
