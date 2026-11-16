@@ -1,6 +1,7 @@
 """Application configuration using pydantic-settings."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
+from pathlib import Path
 from typing import Optional, Union
 
 
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/graphdb"
 
     # API Keys
-    anthropic_api_key: str
+    anthropic_api_key: Optional[str] = None   # optional: Groq alone is enough
     groq_api_key: Optional[str] = None
 
     # LLM Settings
@@ -25,8 +26,10 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
 
     # Groq fallback settings
-    groq_model: str = "llama-3.3-70b-versatile"  # Fast and capable model
+    groq_model: str = "openai/gpt-oss-120b"  # override with GROQ_MODEL; check console.groq.com for current models
     use_groq_fallback: bool = True
+    # Built-in sample data shown until a user connects their own database
+    sample_data_dir: str = str(Path(__file__).resolve().parent.parent / "sample_data")
 
     # Query Settings
     query_timeout: int = 30  # seconds

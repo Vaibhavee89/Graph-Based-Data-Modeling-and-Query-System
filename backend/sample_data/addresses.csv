@@ -1,0 +1,16 @@
+address_id,street,city,state,postal_code,country,address_type
+ADDR-001,588 Main Street,New York,NY,22280,USA,billing
+ADDR-002,3911 Main Street,San Francisco,CA,76237,USA,billing
+ADDR-003,9295 Main Street,Chicago,IL,36062,USA,shipping
+ADDR-004,3711 Main Street,Boston,MA,68878,USA,shipping
+ADDR-005,206 Main Street,Seattle,WA,30926,USA,shipping
+ADDR-006,5674 Main Street,Austin,TX,46421,USA,billing
+ADDR-007,3627 Main Street,Denver,CO,54118,USA,billing
+ADDR-008,1619 Main Street,Miami,FL,59797,USA,billing
+ADDR-009,5981 Main Street,Portland,OR,55082,USA,shipping
+ADDR-010,811 Main Street,Atlanta,GA,70217,USA,billing
+ADDR-011,6301 Main Street,New York,NY,20328,USA,shipping
+ADDR-012,6025 Main Street,San Francisco,CA,85674,USA,billing
+ADDR-013,1239 Main Street,Chicago,IL,16006,USA,billing
+ADDR-014,4841 Main Street,Boston,MA,20458,USA,billing
+ADDR-015,1754 Main Street,Seattle,WA,59823,USA,shipping

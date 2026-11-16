@@ -281,6 +281,33 @@ class GraphService:
 
         return False
 
+    def get_starter(self, limit: int = 60) -> GraphData:
+        """
+        A connected starting view: breadth-first from the best-connected node, so the first
+        picture shows hubs, several entity types and the edges between them.
+        """
+        limit = max(1, limit)
+        und = self.graph.to_undirected(as_view=True)
+        seen: List[str] = []
+        seen_set: Set[str] = set()
+        # Start from the highest-degree node; continue from the next hub if its component is small
+        for start in sorted(und.nodes(), key=lambda n: (-und.degree(n), str(n))):
+            if len(seen) >= limit:
+                break
+            if start in seen_set:
+                continue
+            queue = [start]
+            seen_set.add(start)
+            while queue and len(seen) < limit:
+                node = queue.pop(0)
+                seen.append(node)
+                # visit lower-degree neighbours' types evenly: sort by (type, id) for variety
+                for nb in sorted(und.neighbors(node), key=lambda n: (self.graph.nodes[n].get("type", ""), str(n))):
+                    if nb not in seen_set:
+                        seen_set.add(nb)
+                        queue.append(nb)
+        return self.get_subgraph(seen)
+
     def get_subgraph(self, node_ids: List[str]) -> GraphData:
         """
         Get a subgraph containing specified nodes.

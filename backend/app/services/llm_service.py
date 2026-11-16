@@ -12,17 +12,19 @@ class LLMService:
 
     def __init__(self):
         """Initialize LLM service with both providers."""
-        # Primary: Anthropic Claude
-        self.anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        # Primary: Anthropic Claude (skipped when no real key is configured)
+        key = (settings.anthropic_api_key or "").strip()
+        has_anthropic = bool(key) and not key.startswith("your_")
+        self.anthropic_client = anthropic.Anthropic(api_key=key) if has_anthropic else None
         self.anthropic_model = settings.llm_model
 
         # Fallback: Groq
         self.groq_client = None
         self.groq_model = settings.groq_model
-        if settings.groq_api_key and settings.use_groq_fallback:
+        if settings.groq_api_key and (settings.use_groq_fallback or not has_anthropic):
             try:
                 self.groq_client = Groq(api_key=settings.groq_api_key)
-                print("✓ Groq fallback enabled")
+                print("✓ Groq enabled" + ("" if has_anthropic else " (primary)"))
             except Exception as e:
                 print(f"Warning: Could not initialize Groq client: {e}")
 
@@ -40,7 +42,7 @@ class LLMService:
         message = self.anthropic_client.messages.create(
             model=self.anthropic_model,
             max_tokens=max_tokens or self.max_tokens,
-            temperature=temperature or self.temperature,
+            temperature=self.temperature if temperature is None else temperature,
             system=system or "",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -65,7 +67,7 @@ class LLMService:
         response = self.groq_client.chat.completions.create(
             model=self.groq_model,
             messages=messages,
-            temperature=temperature or self.temperature,
+            temperature=self.temperature if temperature is None else temperature,
             max_tokens=max_tokens or self.max_tokens,
         )
         return response.choices[0].message.content
@@ -89,6 +91,15 @@ class LLMService:
         Returns:
             Generated text
         """
+        # No Anthropic key: Groq is the primary provider
+        if self.anthropic_client is None:
+            if self.groq_client is None:
+                raise Exception("No LLM provider configured (set ANTHROPIC_API_KEY or GROQ_API_KEY)")
+            try:
+                return self._call_groq(prompt, system, temperature, max_tokens)
+            except Exception as e:
+                raise Exception(f"LLM API error: {e}")
+
         # Try Anthropic first
         try:
             return self._call_anthropic(prompt, system, temperature, max_tokens)

@@ -69,3 +69,28 @@ def test_llm_outage_is_reported_as_unavailable_not_off_topic():
 def test_oversized_and_empty_queries_rejected(client):
     assert client.post("/api/query/chat", json={"query": "x" * 2001}).status_code == 422
     assert client.post("/api/query/chat", json={"query": ""}).status_code == 422
+
+
+def test_groq_is_primary_when_no_anthropic_key(monkeypatch):
+    from app.config import settings
+    from app.services.llm_service import LLMService
+    monkeypatch.setattr(settings, "anthropic_api_key", None)
+    monkeypatch.setattr(settings, "groq_api_key", "gsk_test")
+    with patch("app.services.llm_service.Groq") as groq:
+        groq.return_value.chat.completions.create.return_value.choices = [Mock(message=Mock(content="hi"))]
+        svc = LLMService()
+        assert svc.anthropic_client is None
+        assert svc.generate_completion("x") == "hi"
+        # an explicit temperature of 0.0 must be passed through, not replaced by the default
+        monkeypatch.setattr(svc, "temperature", 0.7)
+        svc.generate_completion("x", temperature=0.0)
+        assert groq.return_value.chat.completions.create.call_args.kwargs["temperature"] == 0.0
+
+
+def test_no_provider_configured_fails_clearly(monkeypatch):
+    from app.config import settings
+    from app.services.llm_service import LLMService
+    monkeypatch.setattr(settings, "anthropic_api_key", None)
+    monkeypatch.setattr(settings, "groq_api_key", None)
+    with pytest.raises(Exception, match="No LLM provider"):
+        LLMService().generate_completion("x")

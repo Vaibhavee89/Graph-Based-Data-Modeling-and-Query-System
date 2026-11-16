@@ -98,6 +98,14 @@ export const graphAPI = {
   },
 
   /**
+   * Connected starting view: nodes plus the edges between them
+   */
+  getStarter: async (limit: number = 60): Promise<GraphData> => {
+    const response = await apiClient.get('/api/graph/starter', { params: { limit } });
+    return response.data;
+  },
+
+  /**
    * Get the nodes with the edges between them
    */
   getSubgraph: async (nodeIds: string[]): Promise<GraphData> => {
@@ -140,6 +148,7 @@ export interface ConnectConfig {
   access_code_required: boolean;
   supported: string[];
   session_ttl_minutes: number;
+  sample_data_available: boolean;
 }
 
 export const connectAPI = {

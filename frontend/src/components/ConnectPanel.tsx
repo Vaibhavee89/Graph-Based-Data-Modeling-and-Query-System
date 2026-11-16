@@ -88,7 +88,11 @@ export default function ConnectPanel() {
               </span>
             </span>
           ) : (
-            <span className="text-gray-600">No database connected</span>
+            <span className="text-gray-600">
+              {config?.sample_data_available
+                ? 'Showing built-in sample data. Connect your database to replace it.'
+                : 'No database connected'}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2">

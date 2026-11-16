@@ -29,7 +29,7 @@ import CustomNode from './CustomNode'
 import Legend from './Legend'
 import NodeDetailsPanel from '../NodeDetails/NodeDetailsPanel'
 import FilterPanel, { GraphFilters } from './FilterPanel'
-import { layoutNodes, convertEdges } from '@/lib/graphLayout'
+import { layoutNodes, convertEdges, applyForceLayout } from '@/lib/graphLayout'
 import { debounce } from '@/lib/utils'
 import { FLOW_COLORS, getFlowStatusLabel, getFlowStatusIcon } from '@/lib/flowHighlight'
 
@@ -75,43 +75,30 @@ function GraphCanvasInner() {
     setFilters({ nodeTypes: new Set(availableNodeTypes), edgeTypes: new Set(availableEdgeTypes) })
   }, [availableNodeTypes, availableEdgeTypes])
 
-  // Fetch initial nodes
-  const { data: initialNodes, isLoading } = useQuery({
-    queryKey: ['graph-nodes', sessionId],
-    queryFn: () => graphAPI.getNodes({ limit: 100 }),
+  // Fetch a connected starting view (nodes and their edges together)
+  const { data: starter, isLoading } = useQuery({
+    queryKey: ['graph-starter', sessionId],
+    queryFn: () => graphAPI.getStarter(40),
     staleTime: 5 * 60 * 1000,
   })
 
   // Initialize graph when data loads
   useEffect(() => {
-    if (initialNodes && initialNodes.length > 0) {
-      // Layout nodes
-      const layoutedNodes = layoutNodes(initialNodes, {
-        width: 1600,
-        height: 1000,
-        centerX: 800,
-        centerY: 500,
+    if (starter && starter.nodes.length > 0) {
+      const flowEdges = convertEdges(starter.edges)
+      const seeded = layoutNodes(starter.nodes, { width: 1600, height: 1000, centerX: 800, centerY: 500 })
+      // Spread connected nodes apart so labels stay readable
+      const laidOut = applyForceLayout(seeded, flowEdges, 300, {
+        idealDistance: 170,
+        repulsion: 160000,
+        spring: 0.02,
       })
-
-      setNodes(layoutedNodes)
-      addNodes(initialNodes)
-
-      // Load the edges between the initial nodes so the graph isn't a bare cloud
-      let cancelled = false
-      graphAPI
-        .getSubgraph(initialNodes.map((n) => n.id))
-        .then((sub) => {
-          if (cancelled) return
-          setEdges(convertEdges(sub.edges))
-          addEdges(sub.edges)
-        })
-        .catch((error) => console.error('Failed to load initial edges:', error))
-
-      return () => {
-        cancelled = true
-      }
+      setNodes(laidOut)
+      setEdges(flowEdges)
+      addNodes(starter.nodes)
+      addEdges(starter.edges)
     }
-  }, [initialNodes])
+  }, [starter])
 
   // Apply flow highlighting when flowPath changes
   useEffect(() => {

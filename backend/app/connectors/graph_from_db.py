@@ -72,8 +72,14 @@ def build_graph(engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nod
                 index.setdefault((table_name, cols), {})[tuple(_jsonable(row[c]) for c in cols)] = nid
 
     with engine.connect() as conn:
-        # 1) sample rows from every table
-        for name, info in schema.tables.items():
+        # 1) sample rows from every table. Best-connected tables first, so the first nodes a
+        #    client sees (the API returns insertion order) are the hubs, not a pile of leaf rows.
+        degree = {n: 0 for n in schema.tables}
+        for t in schema.tables.values():
+            for fk in t.foreign_keys:
+                degree[t.name] += 1
+                degree[fk.ref_table] += 1
+        for name, info in sorted(schema.tables.items(), key=lambda kv: (-degree[kv[0]], kv[0])):
             tbl: Table = metadata.tables[name]
             res = conn.execute(select(tbl).limit(rows_per_table))
             add_rows(name, [dict(r._mapping) for r in res])

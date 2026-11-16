@@ -1,0 +1,11 @@
+customer_id,name,email,segment
+CUST-001,Acme Corporation,contact@acmecorporation.com,Enterprise
+CUST-002,TechStart Inc,contact@techstartinc.com,Enterprise
+CUST-003,Global Dynamics,contact@globaldynamics.com,Startup
+CUST-004,Innovative Solutions,contact@innovativesolutions.com,SMB
+CUST-005,NextGen Systems,contact@nextgensystems.com,SMB
+CUST-006,Digital Ventures,contact@digitalventures.com,SMB
+CUST-007,Smart Industries,contact@smartindustries.com,Enterprise
+CUST-008,Future Technologies,contact@futuretechnologies.com,Enterprise
+CUST-009,Prime Solutions,contact@primesolutions.com,Partner
+CUST-010,Elite Enterprises,contact@eliteenterprises.com,Enterprise

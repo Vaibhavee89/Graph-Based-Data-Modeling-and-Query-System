@@ -90,7 +90,8 @@ export function convertEdges(
 export function applyForceLayout(
   nodes: Node[],
   edges: Edge[],
-  iterations: number = 50
+  iterations: number = 50,
+  options: { idealDistance?: number; repulsion?: number; spring?: number } = {}
 ): Node[] {
   const updatedNodes = [...nodes]
   const nodeMap = new Map(updatedNodes.map((n) => [n.id, n]))
@@ -105,9 +106,9 @@ export function applyForceLayout(
   })
 
   // Constants
-  const k = 100 // Ideal distance
-  const c_rep = 50000 // Repulsion constant
-  const c_spring = 0.01 // Spring constant
+  const k = options.idealDistance ?? 100 // Ideal distance
+  const c_rep = options.repulsion ?? 50000 // Repulsion constant
+  const c_spring = options.spring ?? 0.01 // Spring constant
 
   for (let iter = 0; iter < iterations; iter++) {
     const forces = new Map<string, { x: number; y: number }>()

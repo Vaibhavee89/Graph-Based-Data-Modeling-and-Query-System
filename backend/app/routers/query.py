@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.graph_store import get_graph
 from app.connectors.query import GenericQueryService
+from app.connectors.demo import get_demo
 from app.connectors.sessions import sessions
 from app.core.rate_limit import rate_limit_chat
 from app.services.query_service import QueryService
@@ -25,9 +26,14 @@ def get_query_service(
         if session is None:
             raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
         return GenericQueryService(session)
+    legacy = get_graph()
+    if legacy.number_of_nodes() == 0:
+        demo = get_demo()
+        if demo is not None:
+            return GenericQueryService(demo)
     db = next(get_db())
     try:
-        return DemoQueryServiceHandle(QueryService(db, get_graph()), db)
+        return DemoQueryServiceHandle(QueryService(db, legacy), db)
     except Exception:
         db.close()
         raise

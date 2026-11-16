@@ -19,7 +19,7 @@ cd "Graph Based Data Modelling and Query System"
 
 # 2. Configure environment
 cd backend && cp .env.example .env
-# Add your ANTHROPIC_API_KEY or GROQ_API_KEY in .env
+# Add your ANTHROPIC_API_KEY or GROQ_API_KEY in .env (either one is enough)
 
 cd ../frontend && echo "VITE_API_URL=http://localhost:8000" > .env
 
@@ -46,6 +46,15 @@ docker-compose exec backend python scripts/load_sample_data.py
 ```
 
 ⏱️ **Time:** 30 minutes | **Cost:** $0-20/month | **See:** [Deployment Guide](docs/PRODUCTION_DEPLOYMENT.md)
+
+### Built-in sample data
+
+The app starts with a small sample dataset (customers, products, orders, invoices, payments,
+deliveries; CSV files in [backend/sample_data/](backend/sample_data/)) so you can explore it straight away.
+It is loaded into an in-memory, read-only database and is never modified.
+When you connect your own database, **your data replaces the sample in your view**; disconnecting brings the
+sample back. Nothing is ever written to your database. Regenerate the CSVs with
+`python backend/scripts/generate_sample_csvs.py`.
 
 ### Try it live with your own database
 

@@ -1,0 +1,21 @@
+product_id,name,category,price,description
+PROD-001,Enterprise Software License,Software,5000.0,High-quality enterprise software license
+PROD-002,Cloud Storage - 1TB,Cloud,99.0,High-quality cloud storage - 1tb
+PROD-003,API Access Premium,Service,299.0,High-quality api access premium
+PROD-004,Consulting Hours - Senior,Service,200.0,High-quality consulting hours - senior
+PROD-005,Hardware Server - Rack,Hardware,8000.0,High-quality hardware server - rack
+PROD-006,Database License,Software,3000.0,High-quality database license
+PROD-007,Network Switch 48-port,Hardware,2500.0,High-quality network switch 48-port
+PROD-008,Security Audit,Service,5000.0,High-quality security audit
+PROD-009,Training Package,Service,1500.0,High-quality training package
+PROD-010,Support Contract - Gold,Service,10000.0,High-quality support contract - gold
+PROD-011,Mobile App License,Software,1200.0,High-quality mobile app license
+PROD-012,Analytics Platform,Software,4000.0,High-quality analytics platform
+PROD-013,Load Balancer,Hardware,3500.0,High-quality load balancer
+PROD-014,SSL Certificate,Service,199.0,High-quality ssl certificate
+PROD-015,Backup Solution,Software,1800.0,High-quality backup solution
+PROD-016,Monitoring Tools,Software,800.0,High-quality monitoring tools
+PROD-017,Development Tools,Software,2200.0,High-quality development tools
+PROD-018,Integration Service,Service,3000.0,High-quality integration service
+PROD-019,Custom Development,Service,15000.0,High-quality custom development
+PROD-020,Maintenance Contract,Service,5000.0,High-quality maintenance contract

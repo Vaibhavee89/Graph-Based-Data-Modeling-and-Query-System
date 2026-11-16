@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.connectors.demo import get_demo
 from app.connectors.sessions import sessions
 from app.connectors.url_safety import UnsafeURL
 from app.core.rate_limit import RateLimiter, client_key
@@ -44,6 +45,7 @@ def public_config():
         "access_code_required": bool(settings.access_code),
         "supported": ["PostgreSQL", "MySQL / MariaDB", "SQL Server", "Oracle"],
         "session_ttl_minutes": settings.session_ttl_minutes,
+        "sample_data_available": get_demo() is not None,
     }
 
 

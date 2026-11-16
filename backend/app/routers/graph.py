@@ -6,6 +6,7 @@ import json
 import io
 
 from app.core.graph_store import get_graph
+from app.connectors.demo import get_demo
 from app.connectors.sessions import sessions
 from app.services.graph_service import GraphService
 from app.schemas.graph import (
@@ -28,7 +29,11 @@ def resolve_graph(x_session_id: Optional[str] = Header(default=None)):
         if session is None:
             raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
         return session.graph
-    return get_graph()
+    legacy = get_graph()
+    if legacy.number_of_nodes() > 0:
+        return legacy
+    demo = get_demo()
+    return demo.graph if demo else legacy
 
 
 def get_graph_service(graph=Depends(resolve_graph)) -> GraphService:
@@ -48,6 +53,15 @@ async def get_overview(service: GraphService = Depends(get_graph_service)):
     - Graph density
     """
     return service.get_overview()
+
+
+@router.get("/starter", response_model=GraphData)
+async def get_starter(
+    limit: int = Query(default=60, ge=1, le=300, description="Approximate number of nodes"),
+    service: GraphService = Depends(get_graph_service),
+):
+    """A connected starting view of the graph (nodes and the edges between them)."""
+    return service.get_starter(limit)
 
 
 @router.get("/nodes", response_model=List[GraphNode])
