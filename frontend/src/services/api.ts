@@ -83,6 +83,16 @@ export const graphAPI = {
   },
 
   /**
+   * Export the whole graph as a JSON blob
+   */
+  exportGraph: async (): Promise<Blob> => {
+    const response = await apiClient.get('/api/graph/export', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  /**
    * Trace flow through the graph
    */
   traceFlow: async (entityId: string): Promise<FlowTraceResponse> => {

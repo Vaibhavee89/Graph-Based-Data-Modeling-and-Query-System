@@ -91,7 +91,30 @@ function GraphCanvasInner() {
 
   // Apply flow highlighting when flowPath changes
   useEffect(() => {
-    if (!flowPath || nodes.length === 0) return
+    if (nodes.length === 0) return
+
+    // Highlight cleared: remove any highlight styling left on nodes/edges
+    if (!flowPath) {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (!node.data?.isHighlighted) return node
+          const { border, boxShadow, ...restStyle } = (node.style || {}) as Record<string, unknown>
+          return {
+            ...node,
+            data: { ...node.data, isHighlighted: false },
+            style: restStyle,
+          }
+        })
+      )
+      setEdges((eds) =>
+        eds.map((edge) => {
+          if (!edge.animated) return edge
+          const { stroke, strokeWidth, ...restStyle } = (edge.style || {}) as Record<string, unknown>
+          return { ...edge, animated: false, style: restStyle }
+        })
+      )
+      return
+    }
 
     // Apply node highlighting
     const highlightedNodesData = nodes.map((node) => {
@@ -176,9 +199,8 @@ function GraphCanvasInner() {
   // Handle export graph
   const handleExportGraph = async () => {
     try {
-      // Fetch from backend export endpoint
-      const response = await fetch('http://localhost:8000/api/graph/export')
-      const blob = await response.blob()
+      // Fetch via the shared API client so VITE_API_URL is respected
+      const blob = await graphAPI.exportGraph()
 
       // Create download link
       const url = URL.createObjectURL(blob)

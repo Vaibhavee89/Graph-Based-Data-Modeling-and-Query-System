@@ -11,10 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings
 from app.core.database import engine, SessionLocal, init_db
-from app.models import (
-    Customer, Product, Order, OrderItem,
-    Invoice, Payment, Delivery, Address
-)
+from scripts.etl_common import load_all
 
 
 class ETLPipeline:
@@ -253,91 +250,10 @@ class ETLPipeline:
         """Load processed data into PostgreSQL."""
         self.log("Loading data into PostgreSQL...")
 
-        # Load processed CSVs
-        customers_df = pd.read_csv(self.processed_dir / 'customers.csv')
-        products_df = pd.read_csv(self.processed_dir / 'products.csv')
-        addresses_df = pd.read_csv(self.processed_dir / 'addresses.csv')
-        orders_df = pd.read_csv(self.processed_dir / 'orders.csv')
-        order_items_df = pd.read_csv(self.processed_dir / 'order_items.csv')
-        invoices_df = pd.read_csv(self.processed_dir / 'invoices.csv')
-        payments_df = pd.read_csv(self.processed_dir / 'payments.csv')
-        deliveries_df = pd.read_csv(self.processed_dir / 'deliveries.csv')
-
-        # Clear existing data
-        self.log("Clearing existing data...")
-        self.db.query(Payment).delete()
-        self.db.query(Invoice).delete()
-        self.db.query(Delivery).delete()
-        self.db.query(OrderItem).delete()
-        self.db.query(Order).delete()
-        self.db.query(Address).delete()
-        self.db.query(Product).delete()
-        self.db.query(Customer).delete()
-        self.db.commit()
-
-        # Load customers
-        self.log("Loading customers...")
-        for _, row in customers_df.iterrows():
-            customer = Customer(**row.to_dict())
-            self.db.add(customer)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(customers_df)} customers")
-
-        # Load products
-        self.log("Loading products...")
-        for _, row in products_df.iterrows():
-            product = Product(**row.to_dict())
-            self.db.add(product)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(products_df)} products")
-
-        # Load addresses
-        self.log("Loading addresses...")
-        for _, row in addresses_df.iterrows():
-            address = Address(**row.to_dict())
-            self.db.add(address)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(addresses_df)} addresses")
-
-        # Load orders
-        self.log("Loading orders...")
-        for _, row in orders_df.iterrows():
-            order = Order(**row.to_dict())
-            self.db.add(order)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(orders_df)} orders")
-
-        # Load order items
-        self.log("Loading order items...")
-        for _, row in order_items_df.iterrows():
-            item = OrderItem(**row.to_dict())
-            self.db.add(item)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(order_items_df)} order items")
-
-        # Load invoices
-        self.log("Loading invoices...")
-        for _, row in invoices_df.iterrows():
-            invoice = Invoice(**row.to_dict())
-            self.db.add(invoice)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(invoices_df)} invoices")
-
-        # Load payments
-        self.log("Loading payments...")
-        for _, row in payments_df.iterrows():
-            payment = Payment(**row.to_dict())
-            self.db.add(payment)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(payments_df)} payments")
-
-        # Load deliveries
-        self.log("Loading deliveries...")
-        for _, row in deliveries_df.iterrows():
-            delivery = Delivery(**row.to_dict())
-            self.db.add(delivery)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(deliveries_df)} deliveries")
+        names = ['customers', 'products', 'addresses', 'orders',
+                 'order_items', 'invoices', 'payments', 'deliveries']
+        frames = {n: pd.read_csv(self.processed_dir / f'{n}.csv') for n in names}
+        load_all(self.db, frames, self.log)
 
     def run(self):
         """Run the complete ETL pipeline."""
@@ -426,6 +342,7 @@ class ETLPipeline:
             self.log(f"\n✗ ETL Pipeline failed: {e}")
             import traceback
             traceback.print_exc()
+            sys.exit(1)
         finally:
             self.db.close()
 

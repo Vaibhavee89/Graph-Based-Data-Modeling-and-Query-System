@@ -16,7 +16,8 @@ def client():
 @pytest.fixture
 def mock_graph(sample_graph):
     """Mock the get_graph function."""
-    with patch('app.core.graph_store.get_graph') as mock:
+    # The router imports get_graph by name, so patch it where it is used.
+    with patch('app.routers.graph.get_graph') as mock:
         mock.return_value = sample_graph
         yield mock
 

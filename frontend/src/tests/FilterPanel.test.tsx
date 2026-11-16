@@ -107,9 +107,14 @@ describe('FilterPanel', () => {
   })
 
   it('calls onReset when Reset All clicked', () => {
+    // Reset is disabled when nothing is filtered, so start with an active filter
+    const activeFilters: GraphFilters = {
+      nodeTypes: new Set(['Customer']),
+      edgeTypes: new Set(['PLACED', 'CONTAINS', 'GENERATED']),
+    }
     render(
       <FilterPanel
-        filters={defaultFilters}
+        filters={activeFilters}
         availableNodeTypes={availableNodeTypes}
         availableEdgeTypes={availableEdgeTypes}
         onFiltersChange={mockOnFiltersChange}

@@ -81,10 +81,10 @@ Return JSON with this structure:
 
         except Exception as e:
             print(f"Guardrail validation error: {e}")
-            # Default to allowing the query in case of errors
+            # Fail closed: if the domain check can't run, don't let the query through
             return GuardrailResult(
-                is_valid=True,
-                reason=f"Validation error, allowing query: {str(e)}"
+                is_valid=False,
+                reason=f"Validation unavailable, query rejected: {str(e)}"
             )
 
     def is_domain_related(self, query: str) -> bool:

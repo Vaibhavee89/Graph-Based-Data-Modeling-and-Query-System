@@ -11,10 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings
 from app.core.database import SessionLocal, init_db
-from app.models import (
-    Customer, Product, Order, OrderItem,
-    Invoice, Payment, Delivery, Address
-)
+from scripts.etl_common import load_all
 
 
 class SapO2CETLPipeline:
@@ -104,7 +101,7 @@ class SapO2CETLPipeline:
                 'product_id': product_id,
                 'name': desc_map.get(product_id, f"Product {product_id}"),
                 'category': rec.get('productGroup', 'Uncategorized'),
-                'price': float(rec.get('grossWeight', 100)) * 1000,  # Dummy price based on weight
+                'price': float(rec.get('grossWeight') or 100) * 1000,  # Dummy price based on weight
                 'description': desc_map.get(product_id, ''),
             })
 
@@ -177,7 +174,7 @@ class SapO2CETLPipeline:
                 'total_amount': float(rec.get('totalNetAmount', 0)),
             })
 
-        df = pd.DataFrame(orders)
+        df = pd.DataFrame(orders, columns=['order_id','customer_id','order_date','status','total_amount'])
         df['order_date'] = pd.to_datetime(df['order_date'], errors='coerce')
         self.log(f"  ✓ Extracted {len(df)} orders")
         return df
@@ -257,7 +254,7 @@ class SapO2CETLPipeline:
                 'status': 'paid' if rec.get('accountingDocument') else 'sent',
             })
 
-        df = pd.DataFrame(invoices)
+        df = pd.DataFrame(invoices, columns=['invoice_id','order_id','invoice_date','due_date','amount','status'])
         df['invoice_date'] = pd.to_datetime(df['invoice_date'], errors='coerce')
         df['due_date'] = df['invoice_date'] + pd.Timedelta(days=30)  # Default 30 days
         self.log(f"  ✓ Extracted {len(df)} invoices")
@@ -306,7 +303,7 @@ class SapO2CETLPipeline:
                 'status': 'completed',
             })
 
-        df = pd.DataFrame(payments)
+        df = pd.DataFrame(payments, columns=['payment_id','invoice_id','payment_date','amount','method','transaction_id','status'])
         df['payment_date'] = pd.to_datetime(df['payment_date'], errors='coerce')
         self.log(f"  ✓ Extracted {len(df)} payments")
         return df
@@ -354,7 +351,7 @@ class SapO2CETLPipeline:
                 'carrier': 'Carrier',
             })
 
-        df = pd.DataFrame(deliveries)
+        df = pd.DataFrame(deliveries, columns=['delivery_id','order_id','address_id','delivery_date','status','tracking_number','carrier'])
         df['delivery_date'] = pd.to_datetime(df['delivery_date'], errors='coerce')
         self.log(f"  ✓ Extracted {len(df)} deliveries")
         return df
@@ -386,81 +383,12 @@ class SapO2CETLPipeline:
         self.log("Loading data into PostgreSQL...")
         self.log("=" * 60)
 
-        # Clear existing data
-        self.log("Clearing existing data...")
-        self.db.query(Payment).delete()
-        self.db.query(Invoice).delete()
-        self.db.query(Delivery).delete()
-        self.db.query(OrderItem).delete()
-        self.db.query(Order).delete()
-        self.db.query(Address).delete()
-        self.db.query(Product).delete()
-        self.db.query(Customer).delete()
-        self.db.commit()
-
-        # Load customers
-        self.log("Loading customers...")
-        for _, row in customers_df.iterrows():
-            customer = Customer(**row.to_dict())
-            self.db.add(customer)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(customers_df)} customers")
-
-        # Load products
-        self.log("Loading products...")
-        for _, row in products_df.iterrows():
-            product = Product(**row.to_dict())
-            self.db.add(product)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(products_df)} products")
-
-        # Load addresses
-        self.log("Loading addresses...")
-        for _, row in addresses_df.iterrows():
-            address = Address(**row.to_dict())
-            self.db.add(address)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(addresses_df)} addresses")
-
-        # Load orders
-        self.log("Loading orders...")
-        for _, row in orders_df.iterrows():
-            order = Order(**row.to_dict())
-            self.db.add(order)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(orders_df)} orders")
-
-        # Load order items
-        self.log("Loading order items...")
-        for _, row in order_items_df.iterrows():
-            item = OrderItem(**row.to_dict())
-            self.db.add(item)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(order_items_df)} order items")
-
-        # Load invoices
-        self.log("Loading invoices...")
-        for _, row in invoices_df.iterrows():
-            invoice = Invoice(**row.to_dict())
-            self.db.add(invoice)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(invoices_df)} invoices")
-
-        # Load payments
-        self.log("Loading payments...")
-        for _, row in payments_df.iterrows():
-            payment = Payment(**row.to_dict())
-            self.db.add(payment)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(payments_df)} payments")
-
-        # Load deliveries
-        self.log("Loading deliveries...")
-        for _, row in deliveries_df.iterrows():
-            delivery = Delivery(**row.to_dict())
-            self.db.add(delivery)
-        self.db.commit()
-        self.log(f"  ✓ Loaded {len(deliveries_df)} deliveries")
+        load_all(self.db, {
+            'customers': customers_df, 'products': products_df,
+            'addresses': addresses_df, 'orders': orders_df,
+            'order_items': order_items_df, 'invoices': invoices_df,
+            'payments': payments_df, 'deliveries': deliveries_df,
+        }, self.log)
 
     def run(self):
         """Run the complete ETL pipeline."""
@@ -527,6 +455,7 @@ class SapO2CETLPipeline:
             self.log(f"\n✗ ETL Pipeline failed: {e}")
             import traceback
             traceback.print_exc()
+            sys.exit(1)
         finally:
             self.db.close()
 
@@ -537,7 +466,7 @@ def main():
 
     if len(sys.argv) < 2:
         print("Usage: python etl_sap_o2c.py <path_to_sap_o2c_data>")
-        print("Example: python backend/scripts/etl_sap_o2c.py /Users/vaibhavee/Downloads/sap-o2c-data")
+        print("Example: python backend/scripts/etl_sap_o2c.py /path/to/sap-o2c-data")
         sys.exit(1)
 
     source_dir = sys.argv[1]
