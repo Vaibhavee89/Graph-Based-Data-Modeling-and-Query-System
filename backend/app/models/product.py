@@ -1,7 +1,9 @@
 """Product model."""
-from sqlalchemy import Column, String, Float, DateTime
-from sqlalchemy.orm import relationship
+
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Float, String
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -20,7 +22,9 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    order_items = relationship("OrderItem", back_populates="product", cascade="all, delete-orphan")
+    order_items = relationship(
+        "OrderItem", back_populates="product", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Product(product_id={self.product_id}, name={self.name})>"

@@ -1,7 +1,9 @@
 """Main FastAPI application."""
+
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.core.database import init_db
@@ -25,7 +27,7 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Configure CORS
@@ -51,7 +53,7 @@ async def health_check():
     return {
         "status": "healthy",
         "app_name": settings.app_name,
-        "version": settings.app_version
+        "version": settings.app_version,
     }
 
 
@@ -66,12 +68,13 @@ async def root():
     return {
         "message": f"Welcome to {settings.app_name}",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
 # Include routers
 from app.routers import connect, graph, query
+
 app.include_router(graph.router, prefix="/api/graph", tags=["Graph"])
 app.include_router(connect.router, prefix="/api/connect", tags=["Connect"])
 app.include_router(query.router, prefix="/api/query", tags=["Query"])

@@ -1,4 +1,5 @@
 """Validate user-supplied database URLs before the server connects to them."""
+
 import ipaddress
 import socket
 from typing import Tuple
@@ -20,7 +21,14 @@ SUPPORTED = {
 }
 
 # Query-string options we pass through; anything else could redirect the connection.
-ALLOWED_QUERY_KEYS = {"sslmode", "ssl", "ssl_ca", "charset", "sslrootcert", "service_name"}
+ALLOWED_QUERY_KEYS = {
+    "sslmode",
+    "ssl",
+    "ssl_ca",
+    "charset",
+    "sslrootcert",
+    "service_name",
+}
 
 
 class UnsafeURL(ValueError):
@@ -73,6 +81,14 @@ def _check_host(host: str) -> None:
         raise UnsafeURL("Could not resolve the database host.")
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                or ip.is_multicast or ip.is_unspecified):
-            raise UnsafeURL("Connections to private or internal addresses are not allowed.")
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise UnsafeURL(
+                "Connections to private or internal addresses are not allowed."
+            )

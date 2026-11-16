@@ -1,4 +1,5 @@
 """Schema introspection that works on any SQLAlchemy-supported database."""
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -31,7 +32,8 @@ class SchemaInfo:
         lines = []
         for t in self.tables.values():
             cols = ", ".join(
-                f"{c} {t.column_types.get(c, '')}".strip() + (" PK" if c in t.primary_key else "")
+                f"{c} {t.column_types.get(c, '')}".strip()
+                + (" PK" if c in t.primary_key else "")
                 for c in t.columns
             )
             lines.append(f"- {t.name} ({cols})")
@@ -54,12 +56,18 @@ def introspect(engine: Engine, max_tables: int) -> SchemaInfo:
         fks = []
         for fk in insp.get_foreign_keys(name):
             ref = fk.get("referred_table")
-            if ref in known and fk.get("constrained_columns") and fk.get("referred_columns"):
-                fks.append(ForeignKey(
-                    columns=list(fk["constrained_columns"]),
-                    ref_table=ref,
-                    ref_columns=list(fk["referred_columns"]),
-                ))
+            if (
+                ref in known
+                and fk.get("constrained_columns")
+                and fk.get("referred_columns")
+            ):
+                fks.append(
+                    ForeignKey(
+                        columns=list(fk["constrained_columns"]),
+                        ref_table=ref,
+                        ref_columns=list(fk["referred_columns"]),
+                    )
+                )
         tables[name] = TableInfo(
             name=name,
             columns=[c["name"] for c in cols],

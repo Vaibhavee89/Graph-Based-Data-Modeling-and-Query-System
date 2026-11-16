@@ -1,8 +1,10 @@
 """Graph store - Singleton for managing the in-memory NetworkX graph."""
-import networkx as nx
+
+import os
 from pathlib import Path
 from typing import Optional
-import os
+
+import networkx as nx
 
 from app.config import settings
 from app.utils.graph_builder import GraphBuilder
@@ -11,7 +13,7 @@ from app.utils.graph_builder import GraphBuilder
 class GraphStore:
     """Singleton class for managing the global graph instance."""
 
-    _instance: Optional['GraphStore'] = None
+    _instance: Optional["GraphStore"] = None
     _graph: Optional[nx.DiGraph] = None
 
     def __new__(cls):
@@ -34,14 +36,18 @@ class GraphStore:
             try:
                 print(f"Loading graph from {pickle_path}...")
                 self._graph = GraphBuilder.load_from_pickle(pickle_path)
-                print(f"✓ Graph loaded: {self._graph.number_of_nodes()} nodes, {self._graph.number_of_edges()} edges")
+                print(
+                    f"✓ Graph loaded: {self._graph.number_of_nodes()} nodes, {self._graph.number_of_edges()} edges"
+                )
             except Exception as e:
                 print(f"✗ Failed to load graph: {e}")
                 print("Creating empty graph...")
                 self._graph = nx.DiGraph()
         else:
             print(f"Graph pickle not found at {pickle_path}")
-            print("Creating empty graph. Run 'python scripts/build_graph.py' to build the graph.")
+            print(
+                "Creating empty graph. Run 'python scripts/build_graph.py' to build the graph."
+            )
             self._graph = nx.DiGraph()
 
     def get_graph(self) -> nx.DiGraph:
@@ -65,7 +71,9 @@ class GraphStore:
             graph: NetworkX directed graph
         """
         self._graph = graph
-        print(f"✓ Graph updated: {self._graph.number_of_nodes()} nodes, {self._graph.number_of_edges()} edges")
+        print(
+            f"✓ Graph updated: {self._graph.number_of_nodes()} nodes, {self._graph.number_of_edges()} edges"
+        )
 
     def is_loaded(self) -> bool:
         """
@@ -85,31 +93,31 @@ class GraphStore:
         """
         if not self.is_loaded():
             return {
-                'total_nodes': 0,
-                'total_edges': 0,
-                'node_types': {},
-                'edge_types': {},
-                'density': 0.0,
-                'is_directed': True,
+                "total_nodes": 0,
+                "total_edges": 0,
+                "node_types": {},
+                "edge_types": {},
+                "density": 0.0,
+                "is_directed": True,
             }
 
         node_types = {}
         for node_id, data in self._graph.nodes(data=True):
-            node_type = data.get('type', 'Unknown')
+            node_type = data.get("type", "Unknown")
             node_types[node_type] = node_types.get(node_type, 0) + 1
 
         edge_types = {}
         for _, _, data in self._graph.edges(data=True):
-            edge_type = data.get('type', 'Unknown')
+            edge_type = data.get("type", "Unknown")
             edge_types[edge_type] = edge_types.get(edge_type, 0) + 1
 
         return {
-            'total_nodes': self._graph.number_of_nodes(),
-            'total_edges': self._graph.number_of_edges(),
-            'node_types': node_types,
-            'edge_types': edge_types,
-            'density': nx.density(self._graph),
-            'is_directed': self._graph.is_directed(),
+            "total_nodes": self._graph.number_of_nodes(),
+            "total_edges": self._graph.number_of_edges(),
+            "node_types": node_types,
+            "edge_types": edge_types,
+            "density": nx.density(self._graph),
+            "is_directed": self._graph.is_directed(),
         }
 
 

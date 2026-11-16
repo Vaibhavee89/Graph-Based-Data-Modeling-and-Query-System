@@ -91,3 +91,18 @@ def test_starter_view_is_connected_and_mixed(client):
     assert d["edges"] and all(e["source"] in ids and e["target"] in ids for e in d["edges"])
     assert client.get("/api/graph/starter?limit=0").status_code == 422
     assert client.get("/api/graph/starter?limit=9999").status_code == 422
+
+
+def test_focus_resolves_plain_ids_and_returns_neighbours(client):
+    # chat text says "ORD-008", the graph node is "orders:ORD-008"
+    r = client.get("/api/graph/focus/ORD-008")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["node_id"] == "orders:ORD-008"
+    ids = {n["id"] for n in d["nodes"]}
+    assert "orders:ORD-008" in ids and len(ids) > 1
+    assert all(e["source"] in ids and e["target"] in ids for e in d["edges"])
+    # exact ids and different casing work too; unknown ids are a clean 404
+    assert client.get("/api/graph/focus/orders:ORD-008").json()["node_id"] == "orders:ORD-008"
+    assert client.get("/api/graph/focus/ord-008").json()["node_id"] == "orders:ORD-008"
+    assert client.get("/api/graph/focus/ORD-999").status_code == 404

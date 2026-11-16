@@ -5,6 +5,7 @@ import axios, { AxiosInstance } from 'axios';
 import { useSessionStore } from '@/stores/sessionStore';
 import type {
   GraphData,
+  GraphEdge,
   GraphOverview,
   GraphNode,
   QueryResponse,
@@ -94,6 +95,14 @@ export const graphAPI = {
    */
   searchNodes: async (query: string): Promise<GraphNode[]> => {
     const response = await apiClient.post('/api/graph/search', { query });
+    return response.data;
+  },
+
+  /**
+   * Find a node by reference (e.g. 'ORD-008') and get it with its direct connections
+   */
+  focus: async (ref: string): Promise<{ node_id: string; nodes: GraphNode[]; edges: GraphEdge[] }> => {
+    const response = await apiClient.get(`/api/graph/focus/${encodeId(ref)}`);
     return response.data;
   },
 

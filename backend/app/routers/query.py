@@ -1,18 +1,18 @@
 """Query API router."""
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
+from app.connectors.demo import get_demo
+from app.connectors.query import GenericQueryService
+from app.connectors.sessions import sessions
 from app.core.database import get_db
 from app.core.graph_store import get_graph
-from app.connectors.query import GenericQueryService
-from app.connectors.demo import get_demo
-from app.connectors.sessions import sessions
 from app.core.rate_limit import rate_limit_chat
-from app.services.query_service import QueryService
 from app.schemas.query import QueryRequest, QueryResponse
-
+from app.services.query_service import QueryService
 
 router = APIRouter()
 
@@ -24,7 +24,9 @@ def get_query_service(
     if x_session_id:
         session = sessions.get(x_session_id)
         if session is None:
-            raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
+            raise HTTPException(
+                status_code=401, detail="Session expired. Please reconnect."
+            )
         return GenericQueryService(session)
     legacy = get_graph()
     if legacy.number_of_nodes() == 0:
@@ -52,11 +54,10 @@ class DemoQueryServiceHandle:
             self._db.close()
 
 
-@router.post("/chat", response_model=QueryResponse, dependencies=[Depends(rate_limit_chat)])
-def chat(
-    request: QueryRequest,
-    service: QueryService = Depends(get_query_service)
-):
+@router.post(
+    "/chat", response_model=QueryResponse, dependencies=[Depends(rate_limit_chat)]
+)
+def chat(request: QueryRequest, service: QueryService = Depends(get_query_service)):
     """
     Process a natural language query.
 
@@ -103,5 +104,5 @@ async def query_health():
     return {
         "status": "healthy",
         "service": "query",
-        "llm_available": True  # TODO: Actually check LLM connectivity
+        "llm_available": True,  # TODO: Actually check LLM connectivity
     }

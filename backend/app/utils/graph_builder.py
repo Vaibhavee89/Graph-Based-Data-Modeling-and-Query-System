@@ -1,13 +1,21 @@
 """Graph builder utility - Builds NetworkX graph from database."""
-import networkx as nx
-from sqlalchemy.orm import Session
-from typing import Dict, List, Tuple
+
 import pickle
 from datetime import datetime
+from typing import Dict, List, Tuple
+
+import networkx as nx
+from sqlalchemy.orm import Session
 
 from app.models import (
-    Customer, Product, Order, OrderItem,
-    Invoice, Payment, Delivery, Address
+    Address,
+    Customer,
+    Delivery,
+    Invoice,
+    Order,
+    OrderItem,
+    Payment,
+    Product,
 )
 
 
@@ -16,13 +24,13 @@ class GraphBuilder:
 
     # Node colors by entity type
     NODE_COLORS = {
-        'Customer': '#3B82F6',    # Blue
-        'Product': '#10B981',     # Green
-        'Order': '#F59E0B',       # Orange
-        'Delivery': '#8B5CF6',    # Purple
-        'Invoice': '#EF4444',     # Red
-        'Payment': '#FBBF24',     # Yellow
-        'Address': '#6B7280',     # Gray
+        "Customer": "#3B82F6",  # Blue
+        "Product": "#10B981",  # Green
+        "Order": "#F59E0B",  # Orange
+        "Delivery": "#8B5CF6",  # Purple
+        "Invoice": "#EF4444",  # Red
+        "Payment": "#FBBF24",  # Yellow
+        "Address": "#6B7280",  # Gray
     }
 
     def __init__(self, db: Session):
@@ -43,16 +51,18 @@ class GraphBuilder:
         for customer in customers:
             self.graph.add_node(
                 customer.customer_id,
-                type='Customer',
+                type="Customer",
                 label=customer.name,
-                color=self.NODE_COLORS['Customer'],
+                color=self.NODE_COLORS["Customer"],
                 properties={
-                    'customer_id': customer.customer_id,
-                    'name': customer.name,
-                    'email': customer.email,
-                    'segment': customer.segment,
-                    'created_at': customer.created_at.isoformat() if customer.created_at else None,
-                }
+                    "customer_id": customer.customer_id,
+                    "name": customer.name,
+                    "email": customer.email,
+                    "segment": customer.segment,
+                    "created_at": (
+                        customer.created_at.isoformat() if customer.created_at else None
+                    ),
+                },
             )
             count += 1
 
@@ -66,16 +76,16 @@ class GraphBuilder:
         for product in products:
             self.graph.add_node(
                 product.product_id,
-                type='Product',
+                type="Product",
                 label=product.name,
-                color=self.NODE_COLORS['Product'],
+                color=self.NODE_COLORS["Product"],
                 properties={
-                    'product_id': product.product_id,
-                    'name': product.name,
-                    'category': product.category,
-                    'price': float(product.price),
-                    'description': product.description,
-                }
+                    "product_id": product.product_id,
+                    "name": product.name,
+                    "category": product.category,
+                    "price": float(product.price),
+                    "description": product.description,
+                },
             )
             count += 1
 
@@ -90,18 +100,18 @@ class GraphBuilder:
             label = f"{address.city}, {address.state}"
             self.graph.add_node(
                 address.address_id,
-                type='Address',
+                type="Address",
                 label=label,
-                color=self.NODE_COLORS['Address'],
+                color=self.NODE_COLORS["Address"],
                 properties={
-                    'address_id': address.address_id,
-                    'street': address.street,
-                    'city': address.city,
-                    'state': address.state,
-                    'postal_code': address.postal_code,
-                    'country': address.country,
-                    'address_type': address.address_type,
-                }
+                    "address_id": address.address_id,
+                    "street": address.street,
+                    "city": address.city,
+                    "state": address.state,
+                    "postal_code": address.postal_code,
+                    "country": address.country,
+                    "address_type": address.address_type,
+                },
             )
             count += 1
 
@@ -115,16 +125,18 @@ class GraphBuilder:
         for order in orders:
             self.graph.add_node(
                 order.order_id,
-                type='Order',
+                type="Order",
                 label=f"Order {order.order_id}",
-                color=self.NODE_COLORS['Order'],
+                color=self.NODE_COLORS["Order"],
                 properties={
-                    'order_id': order.order_id,
-                    'customer_id': order.customer_id,
-                    'order_date': order.order_date.isoformat() if order.order_date else None,
-                    'status': order.status,
-                    'total_amount': float(order.total_amount),
-                }
+                    "order_id": order.order_id,
+                    "customer_id": order.customer_id,
+                    "order_date": (
+                        order.order_date.isoformat() if order.order_date else None
+                    ),
+                    "status": order.status,
+                    "total_amount": float(order.total_amount),
+                },
             )
             count += 1
 
@@ -138,17 +150,23 @@ class GraphBuilder:
         for invoice in invoices:
             self.graph.add_node(
                 invoice.invoice_id,
-                type='Invoice',
+                type="Invoice",
                 label=f"Invoice {invoice.invoice_id}",
-                color=self.NODE_COLORS['Invoice'],
+                color=self.NODE_COLORS["Invoice"],
                 properties={
-                    'invoice_id': invoice.invoice_id,
-                    'order_id': invoice.order_id,
-                    'invoice_date': invoice.invoice_date.isoformat() if invoice.invoice_date else None,
-                    'due_date': invoice.due_date.isoformat() if invoice.due_date else None,
-                    'amount': float(invoice.amount),
-                    'status': invoice.status,
-                }
+                    "invoice_id": invoice.invoice_id,
+                    "order_id": invoice.order_id,
+                    "invoice_date": (
+                        invoice.invoice_date.isoformat()
+                        if invoice.invoice_date
+                        else None
+                    ),
+                    "due_date": (
+                        invoice.due_date.isoformat() if invoice.due_date else None
+                    ),
+                    "amount": float(invoice.amount),
+                    "status": invoice.status,
+                },
             )
             count += 1
 
@@ -162,18 +180,22 @@ class GraphBuilder:
         for payment in payments:
             self.graph.add_node(
                 payment.payment_id,
-                type='Payment',
+                type="Payment",
                 label=f"Payment {payment.payment_id}",
-                color=self.NODE_COLORS['Payment'],
+                color=self.NODE_COLORS["Payment"],
                 properties={
-                    'payment_id': payment.payment_id,
-                    'invoice_id': payment.invoice_id,
-                    'payment_date': payment.payment_date.isoformat() if payment.payment_date else None,
-                    'amount': float(payment.amount),
-                    'method': payment.method,
-                    'transaction_id': payment.transaction_id,
-                    'status': payment.status,
-                }
+                    "payment_id": payment.payment_id,
+                    "invoice_id": payment.invoice_id,
+                    "payment_date": (
+                        payment.payment_date.isoformat()
+                        if payment.payment_date
+                        else None
+                    ),
+                    "amount": float(payment.amount),
+                    "method": payment.method,
+                    "transaction_id": payment.transaction_id,
+                    "status": payment.status,
+                },
             )
             count += 1
 
@@ -187,18 +209,22 @@ class GraphBuilder:
         for delivery in deliveries:
             self.graph.add_node(
                 delivery.delivery_id,
-                type='Delivery',
+                type="Delivery",
                 label=f"Delivery {delivery.delivery_id}",
-                color=self.NODE_COLORS['Delivery'],
+                color=self.NODE_COLORS["Delivery"],
                 properties={
-                    'delivery_id': delivery.delivery_id,
-                    'order_id': delivery.order_id,
-                    'address_id': delivery.address_id,
-                    'delivery_date': delivery.delivery_date.isoformat() if delivery.delivery_date else None,
-                    'status': delivery.status,
-                    'tracking_number': delivery.tracking_number,
-                    'carrier': delivery.carrier,
-                }
+                    "delivery_id": delivery.delivery_id,
+                    "order_id": delivery.order_id,
+                    "address_id": delivery.address_id,
+                    "delivery_date": (
+                        delivery.delivery_date.isoformat()
+                        if delivery.delivery_date
+                        else None
+                    ),
+                    "status": delivery.status,
+                    "tracking_number": delivery.tracking_number,
+                    "carrier": delivery.carrier,
+                },
             )
             count += 1
 
@@ -212,112 +238,142 @@ class GraphBuilder:
         orders = self.db.query(Order).all()
         count = 0
         for order in orders:
-            if self.graph.has_node(order.customer_id) and self.graph.has_node(order.order_id):
+            if self.graph.has_node(order.customer_id) and self.graph.has_node(
+                order.order_id
+            ):
                 self.graph.add_edge(
                     order.customer_id,
                     order.order_id,
-                    type='PLACED',
-                    label='placed',
-                    properties={'date': order.order_date.isoformat() if order.order_date else None}
+                    type="PLACED",
+                    label="placed",
+                    properties={
+                        "date": (
+                            order.order_date.isoformat() if order.order_date else None
+                        )
+                    },
                 )
                 count += 1
-        edge_counts['PLACED'] = count
+        edge_counts["PLACED"] = count
 
         # Order → Product (CONTAINS) via OrderItem
         order_items = self.db.query(OrderItem).all()
         count = 0
         for item in order_items:
-            if self.graph.has_node(item.order_id) and self.graph.has_node(item.product_id):
+            if self.graph.has_node(item.order_id) and self.graph.has_node(
+                item.product_id
+            ):
                 self.graph.add_edge(
                     item.order_id,
                     item.product_id,
-                    type='CONTAINS',
-                    label=f'contains ({item.quantity})',
+                    type="CONTAINS",
+                    label=f"contains ({item.quantity})",
                     properties={
-                        'quantity': item.quantity,
-                        'unit_price': float(item.unit_price),
-                        'subtotal': float(item.subtotal),
-                    }
+                        "quantity": item.quantity,
+                        "unit_price": float(item.unit_price),
+                        "subtotal": float(item.subtotal),
+                    },
                 )
                 count += 1
-        edge_counts['CONTAINS'] = count
+        edge_counts["CONTAINS"] = count
 
         # Order → Invoice (GENERATED)
         invoices = self.db.query(Invoice).all()
         count = 0
         for invoice in invoices:
-            if self.graph.has_node(invoice.order_id) and self.graph.has_node(invoice.invoice_id):
+            if self.graph.has_node(invoice.order_id) and self.graph.has_node(
+                invoice.invoice_id
+            ):
                 self.graph.add_edge(
                     invoice.order_id,
                     invoice.invoice_id,
-                    type='GENERATED',
-                    label='generated',
-                    properties={'date': invoice.invoice_date.isoformat() if invoice.invoice_date else None}
+                    type="GENERATED",
+                    label="generated",
+                    properties={
+                        "date": (
+                            invoice.invoice_date.isoformat()
+                            if invoice.invoice_date
+                            else None
+                        )
+                    },
                 )
                 count += 1
-        edge_counts['GENERATED'] = count
+        edge_counts["GENERATED"] = count
 
         # Invoice → Payment (PAID_BY)
         payments = self.db.query(Payment).all()
         count = 0
         for payment in payments:
-            if self.graph.has_node(payment.invoice_id) and self.graph.has_node(payment.payment_id):
+            if self.graph.has_node(payment.invoice_id) and self.graph.has_node(
+                payment.payment_id
+            ):
                 self.graph.add_edge(
                     payment.invoice_id,
                     payment.payment_id,
-                    type='PAID_BY',
-                    label='paid by',
+                    type="PAID_BY",
+                    label="paid by",
                     properties={
-                        'date': payment.payment_date.isoformat() if payment.payment_date else None,
-                        'method': payment.method,
-                    }
+                        "date": (
+                            payment.payment_date.isoformat()
+                            if payment.payment_date
+                            else None
+                        ),
+                        "method": payment.method,
+                    },
                 )
                 count += 1
-        edge_counts['PAID_BY'] = count
+        edge_counts["PAID_BY"] = count
 
         # Order → Delivery (RESULTED_IN)
         deliveries = self.db.query(Delivery).all()
         count = 0
         for delivery in deliveries:
-            if self.graph.has_node(delivery.order_id) and self.graph.has_node(delivery.delivery_id):
+            if self.graph.has_node(delivery.order_id) and self.graph.has_node(
+                delivery.delivery_id
+            ):
                 self.graph.add_edge(
                     delivery.order_id,
                     delivery.delivery_id,
-                    type='RESULTED_IN',
-                    label='resulted in',
-                    properties={'status': delivery.status}
+                    type="RESULTED_IN",
+                    label="resulted in",
+                    properties={"status": delivery.status},
                 )
                 count += 1
-        edge_counts['RESULTED_IN'] = count
+        edge_counts["RESULTED_IN"] = count
 
         # Delivery → Address (TO_ADDRESS)
         count = 0
         for delivery in deliveries:
-            if delivery.address_id and self.graph.has_node(delivery.delivery_id) and self.graph.has_node(delivery.address_id):
+            if (
+                delivery.address_id
+                and self.graph.has_node(delivery.delivery_id)
+                and self.graph.has_node(delivery.address_id)
+            ):
                 self.graph.add_edge(
                     delivery.delivery_id,
                     delivery.address_id,
-                    type='TO_ADDRESS',
-                    label='to address',
-                    properties={}
+                    type="TO_ADDRESS",
+                    label="to address",
+                    properties={},
                 )
                 count += 1
-        edge_counts['TO_ADDRESS'] = count
+        edge_counts["TO_ADDRESS"] = count
 
         # Customer → Address (HAS_ADDRESS)
         addresses = self.db.query(Address).filter(Address.customer_id.isnot(None)).all()
         count = 0
         for address in addresses:
-            if self.graph.has_node(address.customer_id) and self.graph.has_node(address.address_id):
+            if self.graph.has_node(address.customer_id) and self.graph.has_node(
+                address.address_id
+            ):
                 self.graph.add_edge(
                     address.customer_id,
                     address.address_id,
-                    type='HAS_ADDRESS',
-                    label='has address',
-                    properties={'type': address.address_type}
+                    type="HAS_ADDRESS",
+                    label="has address",
+                    properties={"type": address.address_type},
                 )
                 count += 1
-        edge_counts['HAS_ADDRESS'] = count
+        edge_counts["HAS_ADDRESS"] = count
 
         total_edges = sum(edge_counts.values())
         return total_edges, edge_counts
@@ -384,7 +440,7 @@ class GraphBuilder:
             filepath: Path to save pickle file
         """
         print(f"\nSaving graph to {filepath}...")
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             pickle.dump(self.graph, f)
         print(f"✓ Graph saved successfully")
 
@@ -400,9 +456,11 @@ class GraphBuilder:
             NetworkX directed graph
         """
         print(f"Loading graph from {filepath}...")
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             graph = pickle.load(f)
-        print(f"✓ Loaded graph with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges")
+        print(
+            f"✓ Loaded graph with {graph.number_of_nodes()} nodes and {graph.number_of_edges()} edges"
+        )
         return graph
 
     def get_statistics(self) -> Dict:
@@ -414,19 +472,19 @@ class GraphBuilder:
         """
         node_types = {}
         for node_id, data in self.graph.nodes(data=True):
-            node_type = data.get('type', 'Unknown')
+            node_type = data.get("type", "Unknown")
             node_types[node_type] = node_types.get(node_type, 0) + 1
 
         edge_types = {}
         for _, _, data in self.graph.edges(data=True):
-            edge_type = data.get('type', 'Unknown')
+            edge_type = data.get("type", "Unknown")
             edge_types[edge_type] = edge_types.get(edge_type, 0) + 1
 
         return {
-            'total_nodes': self.graph.number_of_nodes(),
-            'total_edges': self.graph.number_of_edges(),
-            'node_types': node_types,
-            'edge_types': edge_types,
-            'density': nx.density(self.graph),
-            'is_directed': self.graph.is_directed(),
+            "total_nodes": self.graph.number_of_nodes(),
+            "total_edges": self.graph.number_of_edges(),
+            "node_types": node_types,
+            "edge_types": edge_types,
+            "density": nx.density(self.graph),
+            "is_directed": self.graph.is_directed(),
         }

@@ -1,11 +1,12 @@
 """Database connection and session management."""
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+
 from typing import Generator
 
-from app.config import settings
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.config import settings
 
 # Create database engine
 engine = create_engine(
@@ -13,7 +14,7 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
-    echo=settings.debug
+    echo=settings.debug,
 )
 
 # Create session factory

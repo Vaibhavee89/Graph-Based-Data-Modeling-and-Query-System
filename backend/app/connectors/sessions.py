@@ -1,4 +1,5 @@
 """In-memory sessions for user-supplied database connections. Credentials are never persisted."""
+
 import os
 import secrets
 import threading
@@ -8,7 +9,7 @@ from typing import Dict, Optional
 
 import networkx as nx
 from sqlalchemy import create_engine, event, text
-from sqlalchemy.engine import Engine, URL
+from sqlalchemy.engine import URL, Engine
 
 from app.config import settings
 from app.connectors.graph_from_db import build_graph
@@ -20,8 +21,8 @@ from app.connectors.url_safety import parse_and_check
 class DbSession:
     token: str
     engine: Engine
-    dialect: str          # sqlglot dialect
-    backend: str          # postgresql | mysql | mssql | oracle | sqlite
+    dialect: str  # sqlglot dialect
+    backend: str  # postgresql | mysql | mssql | oracle | sqlite
     database: str
     schema: SchemaInfo
     graph: nx.DiGraph
@@ -51,6 +52,9 @@ def _install_read_only(engine: Engine, backend: str) -> None:
             if backend == "postgresql":
                 cur.execute("SET default_transaction_read_only = on")
                 cur.execute(f"SET statement_timeout = {timeout_ms}")
+                # psycopg2 runs these inside an implicit transaction. Commit them, otherwise the
+                # pool's rollback-on-return silently reverts both settings.
+                dbapi_conn.commit()
             elif backend == "mysql":
                 cur.execute("SET SESSION TRANSACTION READ ONLY")
                 try:
@@ -79,27 +83,47 @@ class SessionManager:
         with self._lock:
             self._purge()
             if len(self._sessions) >= settings.max_sessions:
-                raise RuntimeError("The server is busy. Please try again in a few minutes.")
+                raise RuntimeError(
+                    "The server is busy. Please try again in a few minutes."
+                )
 
         engine = create_engine(
-            url, pool_size=2, max_overflow=0, pool_pre_ping=True, pool_recycle=300,
+            url,
+            pool_size=2,
+            max_overflow=0,
+            pool_pre_ping=True,
+            pool_recycle=300,
             connect_args=_connect_args(backend),
         )
         _install_read_only(engine, backend)
         try:
             with engine.connect() as conn:
-                conn.execute(text("SELECT 1 FROM DUAL" if backend == "oracle" else "SELECT 1"))
+                conn.execute(
+                    text("SELECT 1 FROM DUAL" if backend == "oracle" else "SELECT 1")
+                )
             schema = introspect(engine, settings.max_tables)
             if not schema.tables:
                 raise ValueError("No tables were found in that database.")
-            graph = build_graph(engine, schema, settings.max_rows_per_table, settings.max_graph_nodes)
+            graph = build_graph(
+                engine, schema, settings.max_rows_per_table, settings.max_graph_nodes
+            )
         except Exception:
             engine.dispose()
             raise
 
         session = DbSession(
-            token=secrets.token_urlsafe(32), engine=engine, dialect=dialect, backend=backend,
-            database=(os.path.basename(url.database) if backend == "sqlite" and url.database else url.database) or backend, schema=schema, graph=graph,
+            token=secrets.token_urlsafe(32),
+            engine=engine,
+            dialect=dialect,
+            backend=backend,
+            database=(
+                os.path.basename(url.database)
+                if backend == "sqlite" and url.database
+                else url.database
+            )
+            or backend,
+            schema=schema,
+            graph=graph,
             expires_at=time.time() + settings.session_ttl_minutes * 60,
         )
         with self._lock:
@@ -113,7 +137,9 @@ class SessionManager:
             self._purge()
             s = self._sessions.get(token)
             if s:
-                s.expires_at = time.time() + settings.session_ttl_minutes * 60  # sliding expiry
+                s.expires_at = (
+                    time.time() + settings.session_ttl_minutes * 60
+                )  # sliding expiry
             return s
 
     def close(self, token: str) -> None:

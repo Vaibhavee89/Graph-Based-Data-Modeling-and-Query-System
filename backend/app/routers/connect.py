@@ -1,4 +1,5 @@
 """Connect to a user-supplied database and receive a session token."""
+
 import hmac
 import logging
 from typing import Optional
@@ -20,7 +21,10 @@ _connect_limiter = RateLimiter(limit=settings.connect_rate_limit_per_minute, win
 
 
 class ConnectRequest(BaseModel):
-    url: str = Field(max_length=2048, description="Database URL, e.g. postgresql://user:pass@host:5432/db")
+    url: str = Field(
+        max_length=2048,
+        description="Database URL, e.g. postgresql://user:pass@host:5432/db",
+    )
 
 
 class ConnectResponse(BaseModel):
@@ -34,7 +38,9 @@ class ConnectResponse(BaseModel):
 
 
 def _check_access(code: Optional[str]) -> None:
-    if settings.access_code and not hmac.compare_digest(code or "", settings.access_code):
+    if settings.access_code and not hmac.compare_digest(
+        code or "", settings.access_code
+    ):
         raise HTTPException(status_code=401, detail="Invalid access code.")
 
 
@@ -50,12 +56,19 @@ def public_config():
 
 
 @router.post("", response_model=ConnectResponse)
-def connect(request: Request, body: ConnectRequest, x_access_code: Optional[str] = Header(default=None)):
+def connect(
+    request: Request,
+    body: ConnectRequest,
+    x_access_code: Optional[str] = Header(default=None),
+):
     _check_access(x_access_code)
     retry = _connect_limiter.check(client_key(request))
     if retry > 0:
-        raise HTTPException(status_code=429, detail="Too many connection attempts. Please wait.",
-                            headers={"Retry-After": str(int(retry) + 1)})
+        raise HTTPException(
+            status_code=429,
+            detail="Too many connection attempts. Please wait.",
+            headers={"Retry-After": str(int(retry) + 1)},
+        )
     try:
         s = sessions.open(body.url)
     except UnsafeURL as e:
@@ -67,10 +80,17 @@ def connect(request: Request, body: ConnectRequest, x_access_code: Optional[str]
     except Exception:
         # Never echo driver errors: they can contain hostnames, usernames and network details.
         logger.exception("Database connection failed")
-        raise HTTPException(status_code=400, detail="Could not connect. Check the URL, credentials and that the database accepts remote connections.")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not connect. Check the URL, credentials and that the database accepts remote connections.",
+        )
     return ConnectResponse(
-        session_id=s.token, dialect=s.backend, database=s.database, tables=len(s.schema.tables),
-        nodes=s.graph.number_of_nodes(), edges=s.graph.number_of_edges(),
+        session_id=s.token,
+        dialect=s.backend,
+        database=s.database,
+        tables=len(s.schema.tables),
+        nodes=s.graph.number_of_nodes(),
+        edges=s.graph.number_of_edges(),
         expires_in_minutes=settings.session_ttl_minutes,
     )
 

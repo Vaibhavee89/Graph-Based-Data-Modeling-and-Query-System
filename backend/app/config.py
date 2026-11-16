@@ -1,8 +1,10 @@
 """Application configuration using pydantic-settings."""
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+
 from pathlib import Path
 from typing import Optional, Union
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -17,7 +19,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/graphdb"
 
     # API Keys
-    anthropic_api_key: Optional[str] = None   # optional: Groq alone is enough
+    anthropic_api_key: Optional[str] = None  # optional: Groq alone is enough
     groq_api_key: Optional[str] = None
 
     # LLM Settings
@@ -26,7 +28,9 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.0
 
     # Groq fallback settings
-    groq_model: str = "openai/gpt-oss-120b"  # override with GROQ_MODEL; check console.groq.com for current models
+    groq_model: str = (
+        "openai/gpt-oss-120b"  # override with GROQ_MODEL; check console.groq.com for current models
+    )
     use_groq_fallback: bool = True
     # Built-in sample data shown until a user connects their own database
     sample_data_dir: str = str(Path(__file__).resolve().parent.parent / "sample_data")
@@ -44,9 +48,11 @@ class Settings(BaseSettings):
     graph_pickle_path: str = "backend/graph.pickle"
 
     # Bring-your-own-database connections
-    access_code: Optional[str] = None           # if set, required to open a connection
-    allow_private_hosts: bool = False           # allow localhost / private IPs (local dev only)
-    allow_sqlite_connections: bool = False      # sqlite URLs read server-side files (local dev/tests only)
+    access_code: Optional[str] = None  # if set, required to open a connection
+    allow_private_hosts: bool = False  # allow localhost / private IPs (local dev only)
+    allow_sqlite_connections: bool = (
+        False  # sqlite URLs read server-side files (local dev/tests only)
+    )
     connect_rate_limit_per_minute: int = 5
     session_ttl_minutes: int = 30
     max_sessions: int = 20
@@ -55,20 +61,21 @@ class Settings(BaseSettings):
     max_graph_nodes: int = 5000
 
     # CORS
-    cors_origins: Union[list[str], str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: Union[list[str], str] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
 
-    @field_validator('cors_origins', mode='before')
+    @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
         if isinstance(v, str):
             # Split comma-separated string into list
-            return [origin.strip() for origin in v.split(',')]
+            return [origin.strip() for origin in v.split(",")]
         return v
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
 
 

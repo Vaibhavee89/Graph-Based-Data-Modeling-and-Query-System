@@ -1,9 +1,10 @@
 """Guardrail service - Validates queries are domain-related."""
+
 import logging
 from typing import Optional
 
-from app.services.llm_service import LLMService
 from app.schemas.query import GuardrailResult
+from app.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,9 @@ class GuardrailService:
         """Initialize guardrail service."""
         self.llm = LLMService()
 
-    def validate_query(self, query: str, domain_description: Optional[str] = None) -> GuardrailResult:
+    def validate_query(
+        self, query: str, domain_description: Optional[str] = None
+    ) -> GuardrailResult:
         """
         Validate if query is related to business data domain.
 
@@ -29,12 +32,9 @@ class GuardrailService:
         query_lower = query.lower().strip()
 
         # Allow greetings and basic interactions
-        greetings = ['hi', 'hello', 'hey', 'thanks', 'thank you', 'ok', 'okay']
+        greetings = ["hi", "hello", "hey", "thanks", "thank you", "ok", "okay"]
         if query_lower in greetings:
-            return GuardrailResult(
-                is_valid=True,
-                reason="Greeting or acknowledgment"
-            )
+            return GuardrailResult(is_valid=True, reason="Greeting or acknowledgment")
 
         # Create validation prompt
         system_prompt = """You are a domain validator for a business data analysis system.
@@ -94,13 +94,12 @@ Return JSON with this structure:
 
         try:
             result = self.llm.generate_structured(
-                prompt=validation_prompt,
-                system=system_prompt
+                prompt=validation_prompt, system=system_prompt
             )
 
             return GuardrailResult(
-                is_valid=result.get('is_valid', False),
-                reason=result.get('reason', 'Unknown')
+                is_valid=result.get("is_valid", False),
+                reason=result.get("reason", "Unknown"),
             )
 
         except Exception as e:

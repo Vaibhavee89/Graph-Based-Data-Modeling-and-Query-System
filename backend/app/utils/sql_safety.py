@@ -1,29 +1,69 @@
 """Validation for LLM-generated SQL: single read-only SELECT over known tables."""
+
 from typing import Optional, Set, Tuple
 
 import sqlglot
 from sqlglot import exp
 
 ALLOWED_TABLES: Set[str] = {
-    "customers", "products", "orders", "order_items",
-    "invoices", "payments", "deliveries", "addresses",
+    "customers",
+    "products",
+    "orders",
+    "order_items",
+    "invoices",
+    "payments",
+    "deliveries",
+    "addresses",
 }
 
 # Functions that read files, sleep, or reach outside the query.
 BLOCKED_FUNCTIONS: Set[str] = {
-    "pg_sleep", "pg_sleep_for", "pg_sleep_until", "pg_read_file",
-    "pg_read_binary_file", "pg_ls_dir", "pg_stat_file", "lo_import",
-    "lo_export", "lo_get", "dblink", "dblink_exec", "set_config",
-    "current_setting", "pg_terminate_backend", "pg_cancel_backend",
-    "pg_reload_conf", "query_to_xml", "table_to_xml", "xpath",
+    "pg_sleep",
+    "pg_sleep_for",
+    "pg_sleep_until",
+    "pg_read_file",
+    "pg_read_binary_file",
+    "pg_ls_dir",
+    "pg_stat_file",
+    "lo_import",
+    "lo_export",
+    "lo_get",
+    "dblink",
+    "dblink_exec",
+    "set_config",
+    "current_setting",
+    "pg_terminate_backend",
+    "pg_cancel_backend",
+    "pg_reload_conf",
+    "query_to_xml",
+    "table_to_xml",
+    "xpath",
     # MySQL / MariaDB
-    "sleep", "benchmark", "load_file", "get_lock", "release_lock",
+    "sleep",
+    "benchmark",
+    "load_file",
+    "get_lock",
+    "release_lock",
     # SQL Server
-    "xp_cmdshell", "openrowset", "openquery", "opendatasource", "sp_executesql",
-    "waitfor", "xp_dirtree", "xp_fileexist",
+    "xp_cmdshell",
+    "openrowset",
+    "openquery",
+    "opendatasource",
+    "sp_executesql",
+    "waitfor",
+    "xp_dirtree",
+    "xp_fileexist",
     # Oracle
-    "utl_http", "utl_file", "utl_inaddr", "utl_smtp", "dbms_pipe", "dbms_lock",
-    "dbms_scheduler", "dbms_java", "dbms_xmlgen", "dbms_random_sleep",
+    "utl_http",
+    "utl_file",
+    "utl_inaddr",
+    "utl_smtp",
+    "dbms_pipe",
+    "dbms_lock",
+    "dbms_scheduler",
+    "dbms_java",
+    "dbms_xmlgen",
+    "dbms_random_sleep",
 }
 
 
@@ -39,7 +79,11 @@ def validate_sql(
     Returns (safe_sql, error). On success error is None and safe_sql is the
     re-rendered query with a LIMIT no greater than max_limit.
     """
-    allowed = {t.lower() for t in allowed_tables} if allowed_tables is not None else ALLOWED_TABLES
+    allowed = (
+        {t.lower() for t in allowed_tables}
+        if allowed_tables is not None
+        else ALLOWED_TABLES
+    )
     if not sql or not sql.strip():
         return None, "Empty SQL"
 
@@ -63,8 +107,17 @@ def validate_sql(
         return None, "Row locking is not allowed"
 
     # Any DML/DDL nested anywhere (e.g. data-modifying CTEs).
-    forbidden = (exp.Insert, exp.Update, exp.Delete, exp.Create, exp.Drop,
-                 exp.Alter, exp.Command, exp.Merge, exp.Copy)
+    forbidden = (
+        exp.Insert,
+        exp.Update,
+        exp.Delete,
+        exp.Create,
+        exp.Drop,
+        exp.Alter,
+        exp.Command,
+        exp.Merge,
+        exp.Copy,
+    )
     for node_type in forbidden:
         if tree.find(node_type):
             return None, f"{node_type.__name__} is not allowed"
@@ -79,7 +132,9 @@ def validate_sql(
             return None, f"Table '{name}' is not allowed"
 
     for func in tree.find_all(exp.Func):
-        name = (func.sql_name() if not isinstance(func, exp.Anonymous) else func.name).lower()
+        name = (
+            func.sql_name() if not isinstance(func, exp.Anonymous) else func.name
+        ).lower()
         if name in BLOCKED_FUNCTIONS:
             return None, f"Function '{name}' is not allowed"
 
@@ -89,7 +144,11 @@ def validate_sql(
         current = None
         if limit_node is not None:
             # LIMIT/TOP use .expression; Oracle's FETCH FIRST n ROWS uses .args["count"]
-            expr = limit_node.args.get("count") if isinstance(limit_node, exp.Fetch) else limit_node.expression
+            expr = (
+                limit_node.args.get("count")
+                if isinstance(limit_node, exp.Fetch)
+                else limit_node.expression
+            )
             if isinstance(expr, exp.Literal) and expr.is_int:
                 current = int(expr.name)
         if current is None or current > max_limit:

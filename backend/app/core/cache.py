@@ -1,8 +1,9 @@
 """Simple in-memory cache for query results."""
-from typing import Any, Optional
-from datetime import datetime, timedelta
+
 import hashlib
 import json
+from datetime import datetime, timedelta
+from typing import Any, Optional
 
 
 class SimpleCache:
@@ -33,10 +34,7 @@ class SimpleCache:
             Cache key string
         """
         # Create a deterministic string from args and kwargs
-        key_data = {
-            "args": args,
-            "kwargs": sorted(kwargs.items())
-        }
+        key_data = {"args": args, "kwargs": sorted(kwargs.items())}
         key_str = json.dumps(key_data, sort_keys=True, default=str)
         key_hash = hashlib.md5(key_str.encode()).hexdigest()
         return f"{prefix}:{key_hash}"
@@ -118,8 +116,7 @@ class SimpleCache:
         """
         now = datetime.now()
         expired_keys = [
-            key for key, (_, expiry) in self._cache.items()
-            if now >= expiry
+            key for key, (_, expiry) in self._cache.items() if now >= expiry
         ]
 
         for key in expired_keys:

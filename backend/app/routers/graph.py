@@ -1,23 +1,25 @@
 """Graph API router."""
+
+import io
+import json
+from typing import List, Optional
+
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
-from typing import Optional, List
-import json
-import io
 
-from app.core.graph_store import get_graph
 from app.connectors.demo import get_demo
 from app.connectors.sessions import sessions
-from app.services.graph_service import GraphService
+from app.core.graph_store import get_graph
 from app.schemas.graph import (
-    GraphOverview,
-    GraphNode,
+    FlowTraceResponse,
+    FocusResponse,
     GraphData,
+    GraphNode,
+    GraphOverview,
     NodeExpandRequest,
     NodeSearchRequest,
-    FlowTraceResponse,
 )
-
+from app.services.graph_service import GraphService
 
 router = APIRouter()
 
@@ -27,7 +29,9 @@ def resolve_graph(x_session_id: Optional[str] = Header(default=None)):
     if x_session_id:
         session = sessions.get(x_session_id)
         if session is None:
-            raise HTTPException(status_code=401, detail="Session expired. Please reconnect.")
+            raise HTTPException(
+                status_code=401, detail="Session expired. Please reconnect."
+            )
         return session.graph
     legacy = get_graph()
     if legacy.number_of_nodes() > 0:
@@ -55,9 +59,20 @@ async def get_overview(service: GraphService = Depends(get_graph_service)):
     return service.get_overview()
 
 
+@router.get("/focus/{ref:path}", response_model=FocusResponse)
+async def focus_node(ref: str, service: GraphService = Depends(get_graph_service)):
+    """Find a node by reference (e.g. ORD-008 or orders:ORD-008) and return it with its connections."""
+    result = service.focus(ref)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"{ref} was not found in the graph")
+    return result
+
+
 @router.get("/starter", response_model=GraphData)
 async def get_starter(
-    limit: int = Query(default=60, ge=1, le=300, description="Approximate number of nodes"),
+    limit: int = Query(
+        default=60, ge=1, le=300, description="Approximate number of nodes"
+    ),
     service: GraphService = Depends(get_graph_service),
 ):
     """A connected starting view of the graph (nodes and the edges between them)."""
@@ -66,7 +81,9 @@ async def get_starter(
 
 @router.get("/nodes", response_model=List[GraphNode])
 async def get_nodes(
-    limit: int = Query(default=100, ge=1, le=1000, description="Maximum nodes to return"),
+    limit: int = Query(
+        default=100, ge=1, le=1000, description="Maximum nodes to return"
+    ),
     offset: int = Query(default=0, ge=0, description="Number of nodes to skip"),
     node_type: Optional[str] = Query(default=None, description="Filter by node type"),
     service: GraphService = Depends(get_graph_service),
@@ -85,7 +102,9 @@ async def get_nodes(
 
 
 @router.get("/nodes/{node_id:path}/neighbors", response_model=dict)
-async def get_node_neighbors(node_id: str, service: GraphService = Depends(get_graph_service)):
+async def get_node_neighbors(
+    node_id: str, service: GraphService = Depends(get_graph_service)
+):
     """
     Get neighbors of a node grouped by relationship type.
 
@@ -132,7 +151,11 @@ async def get_node(node_id: str, service: GraphService = Depends(get_graph_servi
 
 
 @router.post("/nodes/{node_id:path}/expand", response_model=GraphData)
-async def expand_node(node_id: str, request: NodeExpandRequest, service: GraphService = Depends(get_graph_service)):
+async def expand_node(
+    node_id: str,
+    request: NodeExpandRequest,
+    service: GraphService = Depends(get_graph_service),
+):
     """
     Expand a node to get its connected nodes and edges.
 
@@ -157,7 +180,9 @@ async def expand_node(node_id: str, request: NodeExpandRequest, service: GraphSe
 
 
 @router.post("/search", response_model=List[GraphNode])
-async def search_nodes(request: NodeSearchRequest, service: GraphService = Depends(get_graph_service)):
+async def search_nodes(
+    request: NodeSearchRequest, service: GraphService = Depends(get_graph_service)
+):
     """
     Search nodes by text query.
 
@@ -171,14 +196,15 @@ async def search_nodes(request: NodeSearchRequest, service: GraphService = Depen
     Returns list of matching nodes.
     """
     return service.search_nodes(
-        query=request.query,
-        node_type=request.node_type,
-        limit=request.limit
+        query=request.query, node_type=request.node_type, limit=request.limit
     )
 
 
 @router.post("/subgraph", response_model=GraphData)
-async def get_subgraph(node_ids: List[str] = Body(..., max_length=2000), service: GraphService = Depends(get_graph_service)):
+async def get_subgraph(
+    node_ids: List[str] = Body(..., max_length=2000),
+    service: GraphService = Depends(get_graph_service),
+):
     """
     Get a subgraph containing specified nodes.
 
@@ -192,7 +218,9 @@ async def get_subgraph(node_ids: List[str] = Body(..., max_length=2000), service
 
 
 @router.get("/trace/{entity_id:path}", response_model=FlowTraceResponse)
-async def trace_flow(entity_id: str, service: GraphService = Depends(get_graph_service)):
+async def trace_flow(
+    entity_id: str, service: GraphService = Depends(get_graph_service)
+):
     """
     Trace flow through the graph for visualization.
 
@@ -237,25 +265,29 @@ async def export_graph(service: GraphService = Depends(get_graph_service)):
     all_nodes = []
     for node_id in graph.nodes():
         data = graph.nodes[node_id]
-        all_nodes.append({
-            "id": node_id,
-            "type": data.get("type", "Unknown"),
-            "label": data.get("label", node_id),
-            "color": data.get("color", "#808080"),
-            "properties": data.get("properties", {})
-        })
+        all_nodes.append(
+            {
+                "id": node_id,
+                "type": data.get("type", "Unknown"),
+                "label": data.get("label", node_id),
+                "color": data.get("color", "#808080"),
+                "properties": data.get("properties", {}),
+            }
+        )
 
     # Export all edges
     all_edges = []
     for source, target in graph.edges():
         edge_data = graph.edges[source, target]
-        all_edges.append({
-            "source": source,
-            "target": target,
-            "type": edge_data.get("type", "UNKNOWN"),
-            "label": edge_data.get("label", ""),
-            "properties": edge_data.get("properties", {})
-        })
+        all_edges.append(
+            {
+                "source": source,
+                "target": target,
+                "type": edge_data.get("type", "UNKNOWN"),
+                "label": edge_data.get("label", ""),
+                "properties": edge_data.get("properties", {}),
+            }
+        )
 
     # Create export data
     export_data = {
@@ -264,17 +296,17 @@ async def export_graph(service: GraphService = Depends(get_graph_service)):
         "metadata": {
             "node_count": len(all_nodes),
             "edge_count": len(all_edges),
-            "exported_at": str(__import__("datetime").datetime.now())
-        }
+            "exported_at": str(__import__("datetime").datetime.now()),
+        },
     }
 
     # Convert to JSON
     json_str = json.dumps(export_data, indent=2)
-    json_bytes = json_str.encode('utf-8')
+    json_bytes = json_str.encode("utf-8")
 
     # Return as downloadable file
     return StreamingResponse(
         io.BytesIO(json_bytes),
         media_type="application/json",
-        headers={"Content-Disposition": "attachment; filename=graph_export.json"}
+        headers={"Content-Disposition": "attachment; filename=graph_export.json"},
     )

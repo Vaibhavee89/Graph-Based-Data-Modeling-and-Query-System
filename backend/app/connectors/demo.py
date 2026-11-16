@@ -3,6 +3,7 @@
 It is only shown while a user has no connection of their own. It is never written to by
 users, and connecting a real database replaces it in the UI for that user.
 """
+
 import csv
 import logging
 import threading
@@ -30,7 +31,16 @@ DDL = [
     "CREATE TABLE payments (payment_id TEXT PRIMARY KEY, invoice_id TEXT REFERENCES invoices(invoice_id), payment_date TEXT, amount REAL, method TEXT, transaction_id TEXT, status TEXT)",
     "CREATE TABLE deliveries (delivery_id TEXT PRIMARY KEY, order_id TEXT REFERENCES orders(order_id), delivery_date TEXT, status TEXT, tracking_number TEXT, address_id TEXT REFERENCES addresses(address_id))",
 ]
-LOAD_ORDER = ["customers", "products", "addresses", "orders", "order_items", "invoices", "payments", "deliveries"]
+LOAD_ORDER = [
+    "customers",
+    "products",
+    "addresses",
+    "orders",
+    "order_items",
+    "invoices",
+    "payments",
+    "deliveries",
+]
 
 _lock = threading.Lock()
 _demo: Optional[DbSession] = None
@@ -41,17 +51,24 @@ def _build(data_dir: Path) -> Optional[DbSession]:
     if not all((data_dir / f"{t}.csv").exists() for t in LOAD_ORDER):
         return None
 
-    engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
     with engine.begin() as conn:
         for stmt in DDL:
             conn.execute(text(stmt))
         for table in LOAD_ORDER:
             with open(data_dir / f"{table}.csv", newline="", encoding="utf-8") as f:
-                rows = [{k: (v if v != "" else None) for k, v in r.items()} for r in csv.DictReader(f)]
+                rows = [
+                    {k: (v if v != "" else None) for k, v in r.items()}
+                    for r in csv.DictReader(f)
+                ]
             if rows:
                 cols = list(rows[0])
                 conn.execute(
-                    text(f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join(':' + c for c in cols)})"),
+                    text(
+                        f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join(':' + c for c in cols)})"
+                    ),
                     rows,
                 )
     # Loaded: from now on the shared connection refuses writes
@@ -59,10 +76,18 @@ def _build(data_dir: Path) -> Optional[DbSession]:
         conn.exec_driver_sql("PRAGMA query_only = ON")
 
     schema = introspect(engine, settings.max_tables)
-    graph = build_graph(engine, schema, settings.max_rows_per_table, settings.max_graph_nodes)
+    graph = build_graph(
+        engine, schema, settings.max_rows_per_table, settings.max_graph_nodes
+    )
     return DbSession(
-        token="__demo__", engine=engine, dialect="sqlite", backend="sqlite", database="sample data",
-        schema=schema, graph=graph, expires_at=float("inf"),
+        token="__demo__",
+        engine=engine,
+        dialect="sqlite",
+        backend="sqlite",
+        database="sample data",
+        schema=schema,
+        graph=graph,
+        expires_at=float("inf"),
     )
 
 
@@ -75,7 +100,9 @@ def get_demo() -> Optional[DbSession]:
             try:
                 _demo = _build(Path(settings.sample_data_dir))
                 if _demo:
-                    logger.info("Sample data loaded: %d nodes", _demo.graph.number_of_nodes())
+                    logger.info(
+                        "Sample data loaded: %d nodes", _demo.graph.number_of_nodes()
+                    )
             except Exception:
                 logger.exception("Could not build sample data")
         return _demo

@@ -1,7 +1,9 @@
 """Customer model."""
-from sqlalchemy import Column, String, DateTime
-from sqlalchemy.orm import relationship
+
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, String
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -19,12 +21,14 @@ class Customer(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    orders = relationship("Order", back_populates="customer", cascade="all, delete-orphan")
+    orders = relationship(
+        "Order", back_populates="customer", cascade="all, delete-orphan"
+    )
     addresses = relationship(
         "Address",
         foreign_keys="Address.customer_id",
         back_populates="customer",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self):

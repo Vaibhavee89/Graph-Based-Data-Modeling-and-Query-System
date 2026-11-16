@@ -1,7 +1,10 @@
 """Graph service - Business logic for graph operations."""
+
+from typing import Dict, List, Optional, Set
+
 import networkx as nx
-from typing import List, Dict, Optional, Set
-from app.schemas.graph import GraphNode, GraphEdge, GraphData, GraphOverview
+
+from app.schemas.graph import GraphData, GraphEdge, GraphNode, GraphOverview
 
 
 class GraphService:
@@ -30,19 +33,19 @@ class GraphService:
                 node_types={},
                 edge_types={},
                 density=0.0,
-                is_directed=True
+                is_directed=True,
             )
 
         # Count node types
         node_types = {}
         for _, data in self.graph.nodes(data=True):
-            node_type = data.get('type', 'Unknown')
+            node_type = data.get("type", "Unknown")
             node_types[node_type] = node_types.get(node_type, 0) + 1
 
         # Count edge types
         edge_types = {}
         for _, _, data in self.graph.edges(data=True):
-            edge_type = data.get('type', 'Unknown')
+            edge_type = data.get("type", "Unknown")
             edge_types[edge_type] = edge_types.get(edge_type, 0) + 1
 
         return GraphOverview(
@@ -51,14 +54,11 @@ class GraphService:
             node_types=node_types,
             edge_types=edge_types,
             density=nx.density(self.graph),
-            is_directed=self.graph.is_directed()
+            is_directed=self.graph.is_directed(),
         )
 
     def get_nodes(
-        self,
-        limit: int = 100,
-        offset: int = 0,
-        node_type: Optional[str] = None
+        self, limit: int = 100, offset: int = 0, node_type: Optional[str] = None
     ) -> List[GraphNode]:
         """
         Get nodes with pagination and optional filtering.
@@ -78,22 +78,25 @@ class GraphService:
 
         if node_type:
             all_nodes = [
-                (node_id, data) for node_id, data in all_nodes
-                if data.get('type') == node_type
+                (node_id, data)
+                for node_id, data in all_nodes
+                if data.get("type") == node_type
             ]
 
         # Apply pagination
-        paginated_nodes = all_nodes[offset:offset + limit]
+        paginated_nodes = all_nodes[offset : offset + limit]
 
         # Convert to GraphNode schema
         for node_id, data in paginated_nodes:
-            nodes.append(GraphNode(
-                id=node_id,
-                type=data.get('type', 'Unknown'),
-                label=data.get('label', node_id),
-                color=data.get('color', '#808080'),
-                properties=data.get('properties', {})
-            ))
+            nodes.append(
+                GraphNode(
+                    id=node_id,
+                    type=data.get("type", "Unknown"),
+                    label=data.get("label", node_id),
+                    color=data.get("color", "#808080"),
+                    properties=data.get("properties", {}),
+                )
+            )
 
         return nodes
 
@@ -114,10 +117,10 @@ class GraphService:
 
         return GraphNode(
             id=node_id,
-            type=data.get('type', 'Unknown'),
-            label=data.get('label', node_id),
-            color=data.get('color', '#808080'),
-            properties=data.get('properties', {})
+            type=data.get("type", "Unknown"),
+            label=data.get("label", node_id),
+            color=data.get("color", "#808080"),
+            properties=data.get("properties", {}),
         )
 
     def expand_node(self, node_id: str, depth: int = 1) -> GraphData:
@@ -144,23 +147,27 @@ class GraphService:
         nodes = []
         for nid in connected_nodes:
             data = self.graph.nodes[nid]
-            nodes.append(GraphNode(
-                id=nid,
-                type=data.get('type', 'Unknown'),
-                label=data.get('label', nid),
-                color=data.get('color', '#808080'),
-                properties=data.get('properties', {})
-            ))
+            nodes.append(
+                GraphNode(
+                    id=nid,
+                    type=data.get("type", "Unknown"),
+                    label=data.get("label", nid),
+                    color=data.get("color", "#808080"),
+                    properties=data.get("properties", {}),
+                )
+            )
 
         edge_objects = []
         for source, target, data in edges:
-            edge_objects.append(GraphEdge(
-                source=source,
-                target=target,
-                type=data.get('type', 'UNKNOWN'),
-                label=data.get('label', ''),
-                properties=data.get('properties', {})
-            ))
+            edge_objects.append(
+                GraphEdge(
+                    source=source,
+                    target=target,
+                    type=data.get("type", "UNKNOWN"),
+                    label=data.get("label", ""),
+                    properties=data.get("properties", {}),
+                )
+            )
 
         return GraphData(nodes=nodes, edges=edge_objects)
 
@@ -212,10 +219,7 @@ class GraphService:
         return edges
 
     def search_nodes(
-        self,
-        query: str,
-        node_type: Optional[str] = None,
-        limit: int = 50
+        self, query: str, node_type: Optional[str] = None, limit: int = 50
     ) -> List[GraphNode]:
         """
         Search nodes by text query.
@@ -233,18 +237,20 @@ class GraphService:
 
         for node_id, data in self.graph.nodes(data=True):
             # Filter by type if specified
-            if node_type and data.get('type') != node_type:
+            if node_type and data.get("type") != node_type:
                 continue
 
             # Search in node ID, label, and properties
             if self._node_matches_query(node_id, data, query_lower):
-                matching_nodes.append(GraphNode(
-                    id=node_id,
-                    type=data.get('type', 'Unknown'),
-                    label=data.get('label', node_id),
-                    color=data.get('color', '#808080'),
-                    properties=data.get('properties', {})
-                ))
+                matching_nodes.append(
+                    GraphNode(
+                        id=node_id,
+                        type=data.get("type", "Unknown"),
+                        label=data.get("label", node_id),
+                        color=data.get("color", "#808080"),
+                        properties=data.get("properties", {}),
+                    )
+                )
 
                 # Stop if we've reached the limit
                 if len(matching_nodes) >= limit:
@@ -269,17 +275,41 @@ class GraphService:
             return True
 
         # Check label
-        label = data.get('label', '')
+        label = data.get("label", "")
         if query in label.lower():
             return True
 
         # Check properties
-        properties = data.get('properties', {})
+        properties = data.get("properties", {})
         for key, value in properties.items():
             if isinstance(value, str) and query in value.lower():
                 return True
 
         return False
+
+    def resolve(self, ref: str) -> Optional[str]:
+        """
+        Find a node id from a reference such as 'ORD-008'. Graph ids built from a database look like
+        'orders:ORD-008' (table:key), so accept an exact id or any id whose key part matches.
+        """
+        if self.graph.has_node(ref):
+            return ref
+        suffix = ":" + ref
+        matches = sorted(n for n in self.graph.nodes if isinstance(n, str) and n.endswith(suffix))
+        if matches:
+            return matches[0]
+        # Last resort: case-insensitive key match
+        low = suffix.lower()
+        matches = sorted(n for n in self.graph.nodes if isinstance(n, str) and n.lower().endswith(low))
+        return matches[0] if matches else None
+
+    def focus(self, ref: str) -> Optional[dict]:
+        """The node for `ref` plus its direct neighbours and the edges between them."""
+        node_id = self.resolve(ref)
+        if node_id is None:
+            return None
+        data = self.expand_node(node_id, depth=1)
+        return {"node_id": node_id, "nodes": data.nodes, "edges": data.edges}
 
     def get_starter(self, limit: int = 60) -> GraphData:
         """
@@ -302,7 +332,10 @@ class GraphService:
                 node = queue.pop(0)
                 seen.append(node)
                 # visit lower-degree neighbours' types evenly: sort by (type, id) for variety
-                for nb in sorted(und.neighbors(node), key=lambda n: (self.graph.nodes[n].get("type", ""), str(n))):
+                for nb in sorted(
+                    und.neighbors(node),
+                    key=lambda n: (self.graph.nodes[n].get("type", ""), str(n)),
+                ):
                     if nb not in seen_set:
                         seen_set.add(nb)
                         queue.append(nb)
@@ -331,25 +364,29 @@ class GraphService:
         nodes = []
         for node_id in subgraph.nodes():
             data = self.graph.nodes[node_id]
-            nodes.append(GraphNode(
-                id=node_id,
-                type=data.get('type', 'Unknown'),
-                label=data.get('label', node_id),
-                color=data.get('color', '#808080'),
-                properties=data.get('properties', {})
-            ))
+            nodes.append(
+                GraphNode(
+                    id=node_id,
+                    type=data.get("type", "Unknown"),
+                    label=data.get("label", node_id),
+                    color=data.get("color", "#808080"),
+                    properties=data.get("properties", {}),
+                )
+            )
 
         # Convert edges
         edges = []
         for source, target in subgraph.edges():
             edge_data = self.graph.edges[source, target]
-            edges.append(GraphEdge(
-                source=source,
-                target=target,
-                type=edge_data.get('type', 'UNKNOWN'),
-                label=edge_data.get('label', ''),
-                properties=edge_data.get('properties', {})
-            ))
+            edges.append(
+                GraphEdge(
+                    source=source,
+                    target=target,
+                    type=edge_data.get("type", "UNKNOWN"),
+                    label=edge_data.get("label", ""),
+                    properties=edge_data.get("properties", {}),
+                )
+            )
 
         return GraphData(nodes=nodes, edges=edges)
 
@@ -371,19 +408,21 @@ class GraphService:
         # Get outgoing edges
         for target in self.graph.successors(node_id):
             edge_data = self.graph.edges[node_id, target]
-            edge_type = edge_data.get('type', 'UNKNOWN')
+            edge_type = edge_data.get("type", "UNKNOWN")
 
             if edge_type not in neighbors_by_type:
                 neighbors_by_type[edge_type] = []
 
             target_data = self.graph.nodes[target]
-            neighbors_by_type[edge_type].append(GraphNode(
-                id=target,
-                type=target_data.get('type', 'Unknown'),
-                label=target_data.get('label', target),
-                color=target_data.get('color', '#808080'),
-                properties=target_data.get('properties', {})
-            ))
+            neighbors_by_type[edge_type].append(
+                GraphNode(
+                    id=target,
+                    type=target_data.get("type", "Unknown"),
+                    label=target_data.get("label", target),
+                    color=target_data.get("color", "#808080"),
+                    properties=target_data.get("properties", {}),
+                )
+            )
 
         # Get incoming edges
         for source in self.graph.predecessors(node_id):
@@ -394,13 +433,15 @@ class GraphService:
                 neighbors_by_type[edge_type] = []
 
             source_data = self.graph.nodes[source]
-            neighbors_by_type[edge_type].append(GraphNode(
-                id=source,
-                type=source_data.get('type', 'Unknown'),
-                label=source_data.get('label', source),
-                color=source_data.get('color', '#808080'),
-                properties=source_data.get('properties', {})
-            ))
+            neighbors_by_type[edge_type].append(
+                GraphNode(
+                    id=source,
+                    type=source_data.get("type", "Unknown"),
+                    label=source_data.get("label", source),
+                    color=source_data.get("color", "#808080"),
+                    properties=source_data.get("properties", {}),
+                )
+            )
 
         return neighbors_by_type
 
@@ -420,28 +461,26 @@ class GraphService:
                 "message": f"Entity {entity_id} not found",
                 "path_nodes": [],
                 "path_edges": [],
-                "status": "error"
+                "status": "error",
             }
 
-        entity_type = self.graph.nodes[entity_id].get('type')
+        entity_type = self.graph.nodes[entity_id].get("type")
         path_nodes = [entity_id]
         path_edges = []
         flow_status = "complete"
 
-        if entity_type == 'Order':
+        if entity_type == "Order":
             # Trace Order → Invoice → Payment → Delivery
 
             # Find invoice
             invoice_id = None
             for successor in self.graph.successors(entity_id):
-                if self.graph.nodes[successor].get('type') == 'Invoice':
+                if self.graph.nodes[successor].get("type") == "Invoice":
                     invoice_id = successor
                     path_nodes.append(invoice_id)
-                    path_edges.append({
-                        "source": entity_id,
-                        "target": invoice_id,
-                        "type": "GENERATED"
-                    })
+                    path_edges.append(
+                        {"source": entity_id, "target": invoice_id, "type": "GENERATED"}
+                    )
                     break
 
             if not invoice_id:
@@ -450,14 +489,16 @@ class GraphService:
                 # Find payment
                 payment_id = None
                 for successor in self.graph.successors(invoice_id):
-                    if self.graph.nodes[successor].get('type') == 'Payment':
+                    if self.graph.nodes[successor].get("type") == "Payment":
                         payment_id = successor
                         path_nodes.append(payment_id)
-                        path_edges.append({
-                            "source": invoice_id,
-                            "target": payment_id,
-                            "type": "PAID_BY"
-                        })
+                        path_edges.append(
+                            {
+                                "source": invoice_id,
+                                "target": payment_id,
+                                "type": "PAID_BY",
+                            }
+                        )
                         break
 
                 if not payment_id:
@@ -466,31 +507,31 @@ class GraphService:
             # Find delivery
             delivery_id = None
             for successor in self.graph.successors(entity_id):
-                if self.graph.nodes[successor].get('type') == 'Delivery':
+                if self.graph.nodes[successor].get("type") == "Delivery":
                     delivery_id = successor
                     path_nodes.append(delivery_id)
-                    path_edges.append({
-                        "source": entity_id,
-                        "target": delivery_id,
-                        "type": "RESULTED_IN"
-                    })
+                    path_edges.append(
+                        {
+                            "source": entity_id,
+                            "target": delivery_id,
+                            "type": "RESULTED_IN",
+                        }
+                    )
                     break
 
             if not delivery_id and flow_status == "complete":
                 flow_status = "partial"
 
-        elif entity_type == 'Invoice':
+        elif entity_type == "Invoice":
             # Trace Invoice → Payment
             payment_id = None
             for successor in self.graph.successors(entity_id):
-                if self.graph.nodes[successor].get('type') == 'Payment':
+                if self.graph.nodes[successor].get("type") == "Payment":
                     payment_id = successor
                     path_nodes.append(payment_id)
-                    path_edges.append({
-                        "source": entity_id,
-                        "target": payment_id,
-                        "type": "PAID_BY"
-                    })
+                    path_edges.append(
+                        {"source": entity_id, "target": payment_id, "type": "PAID_BY"}
+                    )
                     break
 
             if not payment_id:
@@ -498,37 +539,46 @@ class GraphService:
 
             # Trace back to Order
             for predecessor in self.graph.predecessors(entity_id):
-                if self.graph.nodes[predecessor].get('type') == 'Order':
+                if self.graph.nodes[predecessor].get("type") == "Order":
                     path_nodes.insert(0, predecessor)
-                    path_edges.insert(0, {
-                        "source": predecessor,
-                        "target": entity_id,
-                        "type": "GENERATED"
-                    })
+                    path_edges.insert(
+                        0,
+                        {
+                            "source": predecessor,
+                            "target": entity_id,
+                            "type": "GENERATED",
+                        },
+                    )
                     break
 
-        elif entity_type == 'Delivery':
+        elif entity_type == "Delivery":
             # Trace back to Order
             for predecessor in self.graph.predecessors(entity_id):
-                if self.graph.nodes[predecessor].get('type') == 'Order':
+                if self.graph.nodes[predecessor].get("type") == "Order":
                     order_id = predecessor
                     path_nodes.insert(0, order_id)
-                    path_edges.insert(0, {
-                        "source": order_id,
-                        "target": entity_id,
-                        "type": "RESULTED_IN"
-                    })
+                    path_edges.insert(
+                        0,
+                        {
+                            "source": order_id,
+                            "target": entity_id,
+                            "type": "RESULTED_IN",
+                        },
+                    )
 
                     # Find invoice for this order
                     for successor in self.graph.successors(order_id):
-                        if self.graph.nodes[successor].get('type') == 'Invoice':
+                        if self.graph.nodes[successor].get("type") == "Invoice":
                             invoice_id = successor
                             path_nodes.insert(1, invoice_id)
-                            path_edges.insert(0, {
-                                "source": order_id,
-                                "target": invoice_id,
-                                "type": "GENERATED"
-                            })
+                            path_edges.insert(
+                                0,
+                                {
+                                    "source": order_id,
+                                    "target": invoice_id,
+                                    "type": "GENERATED",
+                                },
+                            )
                             break
                     break
 
@@ -536,18 +586,20 @@ class GraphService:
         nodes_data = []
         for node_id in path_nodes:
             data = self.graph.nodes[node_id]
-            nodes_data.append(GraphNode(
-                id=node_id,
-                type=data.get('type', 'Unknown'),
-                label=data.get('label', node_id),
-                color=data.get('color', '#808080'),
-                properties=data.get('properties', {})
-            ))
+            nodes_data.append(
+                GraphNode(
+                    id=node_id,
+                    type=data.get("type", "Unknown"),
+                    label=data.get("label", node_id),
+                    color=data.get("color", "#808080"),
+                    properties=data.get("properties", {}),
+                )
+            )
 
         return {
             "success": True,
             "path_nodes": [node.dict() for node in nodes_data],
             "path_edges": path_edges,
             "status": flow_status,
-            "message": f"Flow trace for {entity_id}: {flow_status}"
+            "message": f"Flow trace for {entity_id}: {flow_status}",
         }

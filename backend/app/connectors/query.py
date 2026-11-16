@@ -1,4 +1,5 @@
 """Natural-language querying over a user-connected database (any dialect)."""
+
 import logging
 from typing import Any, Dict, List
 
@@ -13,8 +14,13 @@ from app.utils.sql_safety import validate_sql
 
 logger = logging.getLogger(__name__)
 
-DIALECT_NAMES = {"postgres": "PostgreSQL", "mysql": "MySQL", "tsql": "Microsoft SQL Server (T-SQL)",
-                 "oracle": "Oracle", "sqlite": "SQLite"}
+DIALECT_NAMES = {
+    "postgres": "PostgreSQL",
+    "mysql": "MySQL",
+    "tsql": "Microsoft SQL Server (T-SQL)",
+    "oracle": "Oracle",
+    "sqlite": "SQLite",
+}
 DIALECT_HINTS = {
     "tsql": "Use TOP n instead of LIMIT. Do not end the statement with a semicolon.",
     "oracle": "Use FETCH FIRST n ROWS ONLY instead of LIMIT. Do not end the statement with a semicolon.",
@@ -62,7 +68,9 @@ class GenericQueryService:
                 answer="I can only answer questions about the data in the connected database.",
             )
         if verdict.reason == "Greeting or acknowledgment":
-            return QueryResponse(success=True, answer="Hello! Ask me anything about your connected data.")
+            return QueryResponse(
+                success=True, answer="Hello! Ask me anything about your connected data."
+            )
 
         dialect = self.session.dialect
         system = (
@@ -70,37 +78,44 @@ class GenericQueryService:
             "Rules: a single SELECT statement only; use only the tables and columns listed in the schema; "
             f"include ORDER BY and a row limit. {DIALECT_HINTS.get(dialect, '')}"
         )
-        prompt = f'''Database schema:
+        prompt = f"""Database schema:
 {schema_text}
 
 User question: "{query}"
 
-Return JSON: {{"sql": "SELECT ...", "explanation": "what the query does"}}'''
+Return JSON: {{"sql": "SELECT ...", "explanation": "what the query does"}}"""
 
         try:
             result = self.llm.generate_structured(prompt, system)
             safe_sql, error = validate_sql(
-                result.get("sql", ""), max_limit=settings.max_query_results, dialect=dialect,
+                result.get("sql", ""),
+                max_limit=settings.max_query_results,
+                dialect=dialect,
                 allowed_tables=set(self.session.schema.tables),
             )
             if error:
                 logger.warning("Rejected generated SQL: %s", error)
                 return QueryResponse(
-                    success=False, message="The generated query was not safe to run",
+                    success=False,
+                    message="The generated query was not safe to run",
                     answer="I couldn't build a safe query for that question. Please try rephrasing.",
                 )
             data = run_read_only(self.session, safe_sql, settings.max_query_results)
         except Exception:
             logger.exception("Generic query error")
             return QueryResponse(
-                success=False, message="Could not run the generated query",
+                success=False,
+                message="Could not run the generated query",
                 answer="I encountered an error running your query. Please try rephrasing.",
             )
 
         entities = self._entities(data)
         return QueryResponse(
-            success=True, answer=self._format(result.get("explanation", ""), data),
-            data=_serializable(data), entities=entities, intent="SQL",
+            success=True,
+            answer=self._format(result.get("explanation", ""), data),
+            data=_serializable(data),
+            entities=entities,
+            intent="SQL",
         )
 
     def _entities(self, rows: List[Dict[str, Any]]) -> List[str]:
@@ -128,4 +143,5 @@ Return JSON: {{"sql": "SELECT ...", "explanation": "what the query does"}}'''
 
 def _serializable(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     from app.connectors.graph_from_db import _jsonable
+
     return [{k: _jsonable(v) for k, v in r.items()} for r in rows]

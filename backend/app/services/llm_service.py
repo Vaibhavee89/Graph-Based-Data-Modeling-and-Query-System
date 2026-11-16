@@ -1,8 +1,10 @@
 """LLM service - Wrapper for Claude API with Groq fallback."""
+
+import json
+from typing import Any, Dict, Optional
+
 import anthropic
 from groq import Groq
-from typing import Optional, Dict, Any
-import json
 
 from app.config import settings
 
@@ -15,7 +17,9 @@ class LLMService:
         # Primary: Anthropic Claude (skipped when no real key is configured)
         key = (settings.anthropic_api_key or "").strip()
         has_anthropic = bool(key) and not key.startswith("your_")
-        self.anthropic_client = anthropic.Anthropic(api_key=key) if has_anthropic else None
+        self.anthropic_client = (
+            anthropic.Anthropic(api_key=key) if has_anthropic else None
+        )
         self.anthropic_model = settings.llm_model
 
         # Fallback: Groq
@@ -44,7 +48,7 @@ class LLMService:
             max_tokens=max_tokens or self.max_tokens,
             temperature=self.temperature if temperature is None else temperature,
             system=system or "",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
         )
         return message.content[0].text
 
@@ -94,7 +98,9 @@ class LLMService:
         # No Anthropic key: Groq is the primary provider
         if self.anthropic_client is None:
             if self.groq_client is None:
-                raise Exception("No LLM provider configured (set ANTHROPIC_API_KEY or GROQ_API_KEY)")
+                raise Exception(
+                    "No LLM provider configured (set ANTHROPIC_API_KEY or GROQ_API_KEY)"
+                )
             try:
                 return self._call_groq(prompt, system, temperature, max_tokens)
             except Exception as e:
@@ -110,18 +116,32 @@ class LLMService:
             # Check if we should fallback to Groq
             if self.groq_client and settings.use_groq_fallback:
                 # Fallback for credit issues, rate limits, or auth errors
-                if any(keyword in error_msg.lower() for keyword in [
-                    'credit', 'balance', 'billing', 'rate_limit',
-                    'authentication', 'invalid', '401', '429', '402'
-                ]):
+                if any(
+                    keyword in error_msg.lower()
+                    for keyword in [
+                        "credit",
+                        "balance",
+                        "billing",
+                        "rate_limit",
+                        "authentication",
+                        "invalid",
+                        "401",
+                        "429",
+                        "402",
+                    ]
+                ):
                     print("→ Falling back to Groq...")
                     try:
-                        result = self._call_groq(prompt, system, temperature, max_tokens)
+                        result = self._call_groq(
+                            prompt, system, temperature, max_tokens
+                        )
                         print("✓ Groq fallback successful")
                         return result
                     except Exception as groq_error:
                         print(f"Groq fallback also failed: {groq_error}")
-                        raise Exception(f"Both Anthropic and Groq failed. Anthropic: {error_msg}, Groq: {groq_error}")
+                        raise Exception(
+                            f"Both Anthropic and Groq failed. Anthropic: {error_msg}, Groq: {groq_error}"
+                        )
 
             # No fallback available or shouldn't fallback
             raise Exception(f"LLM API error: {error_msg}")
@@ -148,7 +168,9 @@ class LLMService:
         """
         try:
             # Add instruction to return JSON
-            full_system = (system or "") + "\n\nReturn your response as valid JSON only, no other text."
+            full_system = (
+                system or ""
+            ) + "\n\nReturn your response as valid JSON only, no other text."
 
             response_text = self.generate_completion(
                 prompt=prompt,
@@ -160,7 +182,9 @@ class LLMService:
             # Sometimes LLMs wrap JSON in markdown code blocks
             response_text = response_text.strip()
             if response_text.startswith("```json"):
-                response_text = response_text.replace("```json", "").replace("```", "").strip()
+                response_text = (
+                    response_text.replace("```json", "").replace("```", "").strip()
+                )
             elif response_text.startswith("```"):
                 response_text = response_text.replace("```", "").strip()
 

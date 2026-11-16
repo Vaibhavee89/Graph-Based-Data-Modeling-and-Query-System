@@ -1,4 +1,5 @@
 """Build a NetworkX graph from any relational database: rows = nodes, foreign keys = edges."""
+
 import datetime
 import decimal
 from typing import Any, Dict, List, Tuple
@@ -10,8 +11,18 @@ from sqlalchemy.engine import Engine
 from app.connectors.introspect import SchemaInfo
 
 PALETTE = [
-    "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444", "#EC4899",
-    "#14B8A6", "#F97316", "#6366F1", "#84CC16", "#06B6D4", "#A855F7",
+    "#3B82F6",
+    "#10B981",
+    "#F59E0B",
+    "#8B5CF6",
+    "#EF4444",
+    "#EC4899",
+    "#14B8A6",
+    "#F97316",
+    "#6366F1",
+    "#84CC16",
+    "#06B6D4",
+    "#A855F7",
 ]
 LABEL_HINTS = ("name", "title", "label", "email", "description", "code")
 IN_CHUNK = 200
@@ -41,17 +52,22 @@ def _label(table: str, row: Dict[str, Any], pk: List[str]) -> str:
     return f"{table} {'|'.join(str(row[c]) for c in pk)}"
 
 
-def build_graph(engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nodes: int) -> nx.DiGraph:
+def build_graph(
+    engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nodes: int
+) -> nx.DiGraph:
     graph = nx.DiGraph()
     metadata = MetaData()
     metadata.reflect(bind=engine, only=list(schema.tables))
-    color = {name: PALETTE[i % len(PALETTE)] for i, name in enumerate(sorted(schema.tables))}
+    color = {
+        name: PALETTE[i % len(PALETTE)] for i, name in enumerate(sorted(schema.tables))
+    }
 
     # (table, tuple(columns)) -> {value tuple: node id}; used to resolve foreign keys
     index: Dict[Tuple[str, Tuple[str, ...]], Dict[Tuple, str]] = {}
     pending_fk_cols = {
         (fk.ref_table, tuple(fk.ref_columns))
-        for t in schema.tables.values() for fk in t.foreign_keys
+        for t in schema.tables.values()
+        for fk in t.foreign_keys
     }
 
     def add_rows(table_name: str, rows: List[Dict[str, Any]]) -> None:
@@ -66,10 +82,17 @@ def build_graph(engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nod
             if graph.has_node(nid):
                 continue
             props = {k: _jsonable(v) for k, v in row.items()}
-            graph.add_node(nid, type=table_name, label=_label(table_name, row, info.primary_key),
-                           color=color[table_name], properties=props)
+            graph.add_node(
+                nid,
+                type=table_name,
+                label=_label(table_name, row, info.primary_key),
+                color=color[table_name],
+                properties=props,
+            )
             for cols in (c for (t, c) in pending_fk_cols if t == table_name):
-                index.setdefault((table_name, cols), {})[tuple(_jsonable(row[c]) for c in cols)] = nid
+                index.setdefault((table_name, cols), {})[
+                    tuple(_jsonable(row[c]) for c in cols)
+                ] = nid
 
     with engine.connect() as conn:
         # 1) sample rows from every table. Best-connected tables first, so the first nodes a
@@ -79,7 +102,9 @@ def build_graph(engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nod
             for fk in t.foreign_keys:
                 degree[t.name] += 1
                 degree[fk.ref_table] += 1
-        for name, info in sorted(schema.tables.items(), key=lambda kv: (-degree[kv[0]], kv[0])):
+        for name, info in sorted(
+            schema.tables.items(), key=lambda kv: (-degree[kv[0]], kv[0])
+        ):
             tbl: Table = metadata.tables[name]
             res = conn.execute(select(tbl).limit(rows_per_table))
             add_rows(name, [dict(r._mapping) for r in res])
@@ -101,10 +126,13 @@ def build_graph(engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nod
                 ref_tbl = metadata.tables[fk.ref_table]
                 missing_list = list(missing)[:rows_per_table]
                 for i in range(0, len(missing_list), IN_CHUNK):
-                    chunk = missing_list[i:i + IN_CHUNK]
+                    chunk = missing_list[i : i + IN_CHUNK]
                     ref_cols = [ref_tbl.c[c] for c in fk.ref_columns]
-                    cond = ref_cols[0].in_([v[0] for v in chunk]) if len(ref_cols) == 1 \
+                    cond = (
+                        ref_cols[0].in_([v[0] for v in chunk])
+                        if len(ref_cols) == 1
                         else tuple_(*ref_cols).in_(chunk)
+                    )
                     res = conn.execute(select(ref_tbl).where(cond))
                     add_rows(fk.ref_table, [dict(r._mapping) for r in res])
 
@@ -117,6 +145,11 @@ def build_graph(engine: Engine, schema: SchemaInfo, rows_per_table: int, max_nod
                 continue
             target = index.get((fk.ref_table, tuple(fk.ref_columns)), {}).get(val)
             if target:
-                graph.add_edge(nid, target, type=f"{info.name}->{fk.ref_table}",
-                               label=", ".join(fk.columns), properties={})
+                graph.add_edge(
+                    nid,
+                    target,
+                    type=f"{info.name}->{fk.ref_table}",
+                    label=", ".join(fk.columns),
+                    properties={},
+                )
     return graph

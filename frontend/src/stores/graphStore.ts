@@ -11,6 +11,8 @@ interface GraphStore {
   selectedNode: GraphNode | null;
   expandedNodes: Set<string>;
   flowPath: FlowTraceResponse | null;
+  // Set by the chat when a user clicks an entity; GraphCanvas adds it to the canvas and centres on it
+  focusRequest: { nodeId: string; nodes: GraphNode[]; edges: GraphEdge[]; seq: number } | null;
   highlightedNodes: Set<string>;
   highlightedEdges: Set<string>;
 
@@ -25,6 +27,8 @@ interface GraphStore {
   focusNode: (nodeId: string) => void;
   setFlowPath: (flowPath: FlowTraceResponse | null) => void;
   clearFlowHighlight: () => void;
+  requestFocus: (nodeId: string, nodes: GraphNode[], edges: GraphEdge[]) => void;
+  clearFocusRequest: () => void;
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -34,6 +38,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   selectedNode: null,
   expandedNodes: new Set(),
   flowPath: null,
+  focusRequest: null,
   highlightedNodes: new Set(),
   highlightedEdges: new Set(),
 
@@ -105,6 +110,13 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
 
     set({ flowPath, highlightedNodes, highlightedEdges });
   },
+
+  requestFocus: (nodeId, nodes, edges) =>
+    set((state) => ({
+      focusRequest: { nodeId, nodes, edges, seq: (state.focusRequest?.seq ?? 0) + 1 },
+    })),
+
+  clearFocusRequest: () => set({ focusRequest: null }),
 
   // Clear flow highlighting
   clearFlowHighlight: () => {

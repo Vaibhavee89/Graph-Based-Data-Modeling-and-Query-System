@@ -1,4 +1,5 @@
 """Simple in-memory sliding-window rate limiter (per client, per process)."""
+
 import threading
 import time
 from collections import defaultdict, deque
@@ -31,7 +32,11 @@ class RateLimiter:
 
             # Drop idle keys so the dict can't grow without bound
             if len(self._hits) > 10_000:
-                for k in [k for k, v in self._hits.items() if not v or now - v[-1] >= self.window]:
+                for k in [
+                    k
+                    for k, v in self._hits.items()
+                    if not v or now - v[-1] >= self.window
+                ]:
                     del self._hits[k]
             return 0.0
 

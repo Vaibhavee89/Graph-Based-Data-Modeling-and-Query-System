@@ -1,7 +1,9 @@
 """Order and OrderItem models."""
-from sqlalchemy import Column, String, Float, Integer, Date, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
+
 from datetime import datetime
+
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -12,7 +14,11 @@ class Order(Base):
     __tablename__ = "orders"
 
     order_id = Column(String(50), primary_key=True, index=True)
-    customer_id = Column(String(50), ForeignKey("customers.customer_id", ondelete="CASCADE"), nullable=False)
+    customer_id = Column(
+        String(50),
+        ForeignKey("customers.customer_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     order_date = Column(Date, nullable=False, index=True)
     status = Column(String(50), nullable=False)  # e.g., pending, completed, cancelled
     total_amount = Column(Float, nullable=False)
@@ -21,9 +27,15 @@ class Order(Base):
 
     # Relationships
     customer = relationship("Customer", back_populates="orders")
-    order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    invoices = relationship("Invoice", back_populates="order", cascade="all, delete-orphan")
-    deliveries = relationship("Delivery", back_populates="order", cascade="all, delete-orphan")
+    order_items = relationship(
+        "OrderItem", back_populates="order", cascade="all, delete-orphan"
+    )
+    invoices = relationship(
+        "Invoice", back_populates="order", cascade="all, delete-orphan"
+    )
+    deliveries = relationship(
+        "Delivery", back_populates="order", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Order(order_id={self.order_id}, customer_id={self.customer_id})>"
@@ -35,8 +47,14 @@ class OrderItem(Base):
     __tablename__ = "order_items"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(String(50), ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False)
-    product_id = Column(String(50), ForeignKey("products.product_id", ondelete="CASCADE"), nullable=False)
+    order_id = Column(
+        String(50), ForeignKey("orders.order_id", ondelete="CASCADE"), nullable=False
+    )
+    product_id = Column(
+        String(50),
+        ForeignKey("products.product_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     quantity = Column(Integer, nullable=False, default=1)
     unit_price = Column(Float, nullable=False)
     subtotal = Column(Float, nullable=False)

@@ -78,7 +78,7 @@ export default function Message({ message, onEntityClick }: MessageProps) {
     }
 
     // Split content by entity IDs and render with chips
-    let parts: React.ReactNode[] = []
+    const parts: React.ReactNode[] = []
     let lastIndex = 0
     let key = 0
 

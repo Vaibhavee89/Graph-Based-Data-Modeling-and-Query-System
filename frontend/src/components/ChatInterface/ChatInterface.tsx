@@ -24,7 +24,7 @@ export default function ChatInterface() {
     setError,
     clearMessages,
   } = useChatStore()
-  const { focusNode, setFlowPath } = useGraphStore()
+  const { requestFocus, setFlowPath } = useGraphStore()
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -75,31 +75,34 @@ export default function ChatInterface() {
     queryMutation.mutate(message)
   }
 
-  // Handle entity click (focus in graph and trace flow)
+  // Handle entity click: find it in the graph, bring it onto the canvas, select and highlight it
   const handleEntityClick = async (entityId: string) => {
-    console.log('Focusing on entity:', entityId)
-    focusNode(entityId)
-
-    // Try to trace flow for this entity
     try {
-      const flowResult = await graphAPI.traceFlow(entityId)
-      if (flowResult.success) {
-        setFlowPath(flowResult)
-        addMessage({
-          role: 'system',
-          content: `Focusing on ${entityId} and highlighting ${flowResult.status} flow in the graph`,
-        })
-      } else {
-        addMessage({
-          role: 'system',
-          content: `Focusing on ${entityId} in the graph`,
-        })
-      }
-    } catch (error) {
-      // If flow trace fails, just focus the node
+      const found = await graphAPI.focus(entityId)
+      const focused = found.nodes.find((n) => n.id === found.node_id)
+      const neighbours = found.nodes.length - 1
+      // Highlight the entity and its direct connections (the existing flow-highlight mechanism)
+      setFlowPath({
+        success: true,
+        path_nodes: found.nodes,
+        path_edges: found.edges,
+        status: 'complete',
+        message: `${entityId} and its ${neighbours} direct connection${neighbours === 1 ? '' : 's'}`,
+      })
+      requestFocus(found.node_id, found.nodes, found.edges)
       addMessage({
         role: 'system',
-        content: `Focusing on ${entityId} in the graph`,
+        content: `Showing ${focused?.type ?? 'entity'} ${entityId} with its ${neighbours} direct connection${
+          neighbours === 1 ? '' : 's'
+        } in the graph`,
+      })
+    } catch (error: any) {
+      const notFound = error?.response?.status === 404
+      addMessage({
+        role: 'system',
+        content: notFound
+          ? `${entityId} isn't part of the loaded graph (the graph holds a limited sample of rows per table).`
+          : `Couldn't look up ${entityId}. Please try again.`,
       })
     }
   }

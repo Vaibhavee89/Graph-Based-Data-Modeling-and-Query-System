@@ -49,6 +49,8 @@ function GraphCanvasInner() {
     flowPath,
     highlightedNodes,
     highlightedEdges,
+    focusRequest,
+    clearFocusRequest,
   } = useGraphStore()
 
   const [nodes, setNodes] = useState<Node[]>([])
@@ -413,6 +415,71 @@ function GraphCanvasInner() {
     }
     return () => handleSearch.cancel()
   }, [searchQuery, handleSearch, resetSearchHighlight])
+
+  // The chat asked us to show an entity: add it (and its neighbours) to the canvas, select it, centre on it
+  useEffect(() => {
+    if (!focusRequest) return
+    const { nodeId, nodes: incoming, edges: incomingEdges } = focusRequest
+    const current = nodesRef.current
+    const have = new Set(current.map((n) => n.id))
+
+    // Anchor: where the entity already is, or a free spot below the existing graph
+    const existing = current.find((n) => n.id === nodeId)
+    const maxY = current.length ? Math.max(...current.map((n) => n.position.y)) : 0
+    const avgX = current.length ? current.reduce((a, n) => a + n.position.x, 0) / current.length : 400
+    const anchor = existing ? existing.position : { x: avgX, y: maxY + 300 }
+
+    const toAdd = incoming.filter((n) => !have.has(n.id))
+    const ring = toAdd.filter((n) => n.id !== nodeId)
+    const added: Node[] = toAdd.map((n) => {
+      let position = anchor
+      if (n.id !== nodeId) {
+        const i = ring.findIndex((r) => r.id === n.id)
+        const angle = (2 * Math.PI * i) / Math.max(ring.length, 1)
+        position = { x: anchor.x + 260 * Math.cos(angle), y: anchor.y + 260 * Math.sin(angle) }
+      }
+      return {
+        id: n.id,
+        type: 'custom',
+        position,
+        data: { label: n.label, type: n.type, color: n.color, properties: n.properties },
+      }
+    })
+
+    const highlight = useGraphStore.getState().highlightedNodes
+    const mark = (node: Node): Node =>
+      highlight.has(node.id)
+        ? {
+            ...node,
+            data: { ...node.data, isHighlighted: true },
+            style: {
+              ...node.style,
+              border: `3px solid ${FLOW_COLORS.complete}`,
+              boxShadow: `0 0 20px ${FLOW_COLORS.complete}80`,
+            },
+          }
+        : node
+    setNodes((nds) => [...nds, ...added].map(mark))
+
+    const newEdges = convertEdges(incomingEdges)
+    setEdges((eds) => {
+      const ids = new Set(eds.map((e) => e.id))
+      const keys = useGraphStore.getState().highlightedEdges
+      return [...eds, ...newEdges.filter((e) => !ids.has(e.id))].map((e) =>
+        keys.has(`${e.source}-${e.target}`)
+          ? { ...e, animated: true, style: { ...e.style, stroke: FLOW_COLORS.edge, strokeWidth: 3 } }
+          : e
+      )
+    })
+
+    addNodes(incoming)
+    addEdges(incomingEdges)
+    const target = incoming.find((n) => n.id === nodeId)
+    if (target) setSelectedNode(target)
+
+    setTimeout(() => setCenterRef.current(anchor.x + 80, anchor.y + 25, { zoom: 1, duration: 600 }), 80)
+    clearFocusRequest()
+  }, [focusRequest])
 
   // Calculate legend data
   const legendData = useMemo(() => {

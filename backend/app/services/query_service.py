@@ -1,16 +1,18 @@
 """Query service - Natural language query processing."""
+
 import logging
 import re
-import networkx as nx
-from typing import Dict, Any, List, Optional, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from typing import Any, Dict, List, Optional, Tuple
 
-from app.services.llm_service import LLMService
-from app.services.guardrail_service import GuardrailService
+import networkx as nx
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.schemas.query import IntentClassification, QueryResponse
+from app.services.guardrail_service import GuardrailService
+from app.services.llm_service import LLMService
 from app.utils.sql_safety import validate_sql
-from app.schemas.query import QueryResponse, IntentClassification
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +61,14 @@ class QueryService:
             return QueryResponse(
                 success=False,
                 message=f"Query rejected: {validation.reason}",
-                answer="I can only answer questions about business data (customers, orders, products, invoices, payments, deliveries). Please ask a question related to this domain."
+                answer="I can only answer questions about business data (customers, orders, products, invoices, payments, deliveries). Please ask a question related to this domain.",
             )
 
         # Handle greetings
         if validation.reason == "Greeting or acknowledgment":
             return QueryResponse(
                 success=True,
-                answer="Hello! I'm here to help you analyze your business data. You can ask me questions about customers, orders, products, invoices, payments, and deliveries. What would you like to know?"
+                answer="Hello! I'm here to help you analyze your business data. You can ask me questions about customers, orders, products, invoices, payments, and deliveries. What would you like to know?",
             )
 
         try:
@@ -95,7 +97,7 @@ class QueryService:
             return QueryResponse(
                 success=False,
                 message="Error processing query",
-                answer="I encountered an error processing your query. Please try rephrasing your question."
+                answer="I encountered an error processing your query. Please try rephrasing your question.",
             )
 
     def _classify_intent(self, query: str) -> IntentClassification:
@@ -131,15 +133,13 @@ Return JSON:
         except Exception as e:
             print(f"Intent classification error: {e}")
             return IntentClassification(
-                intent="AGGREGATION",
-                confidence=0.5,
-                reasoning="Fallback due to error"
+                intent="AGGREGATION", confidence=0.5, reasoning="Fallback due to error"
             )
 
     def _handle_entity_lookup(self, query: str) -> QueryResponse:
         """Handle entity lookup queries."""
         # Extract entity IDs from query
-        entity_pattern = r'\b([A-Z]+-\d+)\b|\b(\d{9})\b'
+        entity_pattern = r"\b([A-Z]+-\d+)\b|\b(\d{9})\b"
         matches = re.findall(entity_pattern, query)
         entity_ids = [m[0] or m[1] for m in matches]
 
@@ -149,12 +149,14 @@ Return JSON:
             for entity_id in entity_ids:
                 if self.graph.has_node(entity_id):
                     node_data = self.graph.nodes[entity_id]
-                    found_entities.append({
-                        'id': entity_id,
-                        'type': node_data.get('type'),
-                        'label': node_data.get('label'),
-                        'properties': node_data.get('properties', {})
-                    })
+                    found_entities.append(
+                        {
+                            "id": entity_id,
+                            "type": node_data.get("type"),
+                            "label": node_data.get("label"),
+                            "properties": node_data.get("properties", {}),
+                        }
+                    )
 
             if found_entities:
                 # Format response
@@ -164,20 +166,22 @@ Return JSON:
                         f"**{entity['type']} {entity['id']}**: {entity['label']}"
                     )
 
-                answer = "I found the following entities:\n\n" + "\n".join(entity_descriptions)
+                answer = "I found the following entities:\n\n" + "\n".join(
+                    entity_descriptions
+                )
 
                 return QueryResponse(
                     success=True,
                     answer=answer,
                     data=found_entities,
                     entities=entity_ids,
-                    intent="ENTITY_LOOKUP"
+                    intent="ENTITY_LOOKUP",
                 )
 
         return QueryResponse(
             success=False,
             message="No entities found",
-            answer="I couldn't find any entities matching your query. Please provide a valid entity ID (e.g., CUST-0001, ORD-0123)."
+            answer="I couldn't find any entities matching your query. Please provide a valid entity ID (e.g., CUST-0001, ORD-0123).",
         )
 
     def _handle_aggregation(self, query: str) -> QueryResponse:
@@ -213,8 +217,8 @@ Return JSON:
 
         try:
             result = self.llm.generate_structured(sql_prompt, system_prompt)
-            sql = result.get('sql', '')
-            explanation = result.get('explanation', '')
+            sql = result.get("sql", "")
+            explanation = result.get("explanation", "")
 
             print(f"Generated SQL: {sql}")
             print(f"Explanation: {explanation}")
@@ -233,10 +237,7 @@ Return JSON:
             answer = self._format_aggregation_answer(query, data, explanation)
 
             return QueryResponse(
-                success=True,
-                answer=answer,
-                data=data,
-                intent="AGGREGATION"
+                success=True, answer=answer, data=data, intent="AGGREGATION"
             )
 
         except Exception as e:
@@ -244,7 +245,7 @@ Return JSON:
             return QueryResponse(
                 success=False,
                 message="Could not run the generated query",
-                answer="I encountered an error executing your query. Please try rephrasing."
+                answer="I encountered an error executing your query. Please try rephrasing.",
             )
 
     def _handle_traversal(self, query: str) -> QueryResponse:
@@ -252,7 +253,7 @@ Return JSON:
         print("Handling traversal query...")
 
         # Extract entity IDs
-        entity_pattern = r'\b([A-Z]+-\d+)\b|\b(\d{9})\b'
+        entity_pattern = r"\b([A-Z]+-\d+)\b|\b(\d{9})\b"
         matches = re.findall(entity_pattern, query)
         entity_ids = [m[0] or m[1] for m in matches]
 
@@ -260,7 +261,7 @@ Return JSON:
             return QueryResponse(
                 success=False,
                 message="No entity ID found in query",
-                answer="Please provide an entity ID to trace (e.g., 'Trace invoice INV-0001')."
+                answer="Please provide an entity ID to trace (e.g., 'Trace invoice INV-0001').",
             )
 
         entity_id = entity_ids[0]
@@ -269,12 +270,12 @@ Return JSON:
             return QueryResponse(
                 success=False,
                 message="Entity not found in graph",
-                answer=f"I couldn't find entity {entity_id} in the graph."
+                answer=f"I couldn't find entity {entity_id} in the graph.",
             )
 
         # Perform traversal
         node_data = self.graph.nodes[entity_id]
-        node_type = node_data.get('type')
+        node_type = node_data.get("type")
 
         # Build flow path based on entity type
         flow = self._trace_flow(entity_id, node_type)
@@ -287,7 +288,7 @@ Return JSON:
             answer=answer,
             data=flow,
             entities=list(flow.keys()),
-            intent="TRAVERSAL"
+            intent="TRAVERSAL",
         )
 
     def _handle_anomaly_detection(self, query: str) -> QueryResponse:
@@ -296,47 +297,44 @@ Return JSON:
 
         # Find orders without invoices or deliveries
         anomalies = {
-            'orders_without_invoices': [],
-            'orders_without_deliveries': [],
-            'invoices_without_payments': [],
+            "orders_without_invoices": [],
+            "orders_without_deliveries": [],
+            "invoices_without_payments": [],
         }
 
         # Check orders
         for node_id, node_data in self.graph.nodes(data=True):
-            if node_data.get('type') == 'Order':
+            if node_data.get("type") == "Order":
                 # Check for invoice
                 has_invoice = False
                 has_delivery = False
 
                 for successor in self.graph.successors(node_id):
-                    succ_type = self.graph.nodes[successor].get('type')
-                    if succ_type == 'Invoice':
+                    succ_type = self.graph.nodes[successor].get("type")
+                    if succ_type == "Invoice":
                         has_invoice = True
-                    elif succ_type == 'Delivery':
+                    elif succ_type == "Delivery":
                         has_delivery = True
 
                 if not has_invoice:
-                    anomalies['orders_without_invoices'].append(node_id)
+                    anomalies["orders_without_invoices"].append(node_id)
                 if not has_delivery:
-                    anomalies['orders_without_deliveries'].append(node_id)
+                    anomalies["orders_without_deliveries"].append(node_id)
 
-            elif node_data.get('type') == 'Invoice':
+            elif node_data.get("type") == "Invoice":
                 # Check for payment
                 has_payment = any(
-                    self.graph.nodes[s].get('type') == 'Payment'
+                    self.graph.nodes[s].get("type") == "Payment"
                     for s in self.graph.successors(node_id)
                 )
                 if not has_payment:
-                    anomalies['invoices_without_payments'].append(node_id)
+                    anomalies["invoices_without_payments"].append(node_id)
 
         # Format answer
         answer = self._format_anomaly_answer(anomalies)
 
         return QueryResponse(
-            success=True,
-            answer=answer,
-            data=anomalies,
-            intent="ANOMALY_DETECTION"
+            success=True, answer=answer, data=anomalies, intent="ANOMALY_DETECTION"
         )
 
     def _handle_general(self, query: str) -> QueryResponse:
@@ -354,63 +352,60 @@ Provide helpful, accurate answers based on this context."""
 
         try:
             answer = self.llm.generate_completion(query, system_prompt)
-            return QueryResponse(
-                success=True,
-                answer=answer
-            )
+            return QueryResponse(success=True, answer=answer)
         except Exception:
             logger.exception("General query error")
             return QueryResponse(
                 success=False,
                 message="Error processing query",
-                answer="I encountered an error. Please try rephrasing your question."
+                answer="I encountered an error. Please try rephrasing your question.",
             )
 
     def _trace_flow(self, entity_id: str, entity_type: str) -> Dict[str, Any]:
         """Trace the flow for an entity."""
-        flow = {'start': entity_id, 'type': entity_type}
+        flow = {"start": entity_id, "type": entity_type}
 
-        if entity_type == 'Order':
+        if entity_type == "Order":
             # Order → Invoice → Payment
             # Order → Delivery → Address
             for successor in self.graph.successors(entity_id):
-                succ_type = self.graph.nodes[successor].get('type')
-                succ_label = self.graph.nodes[successor].get('label')
+                succ_type = self.graph.nodes[successor].get("type")
+                succ_label = self.graph.nodes[successor].get("label")
 
-                if succ_type == 'Invoice':
-                    flow['invoice'] = {'id': successor, 'label': succ_label}
+                if succ_type == "Invoice":
+                    flow["invoice"] = {"id": successor, "label": succ_label}
                     # Check for payment
                     for payment in self.graph.successors(successor):
-                        if self.graph.nodes[payment].get('type') == 'Payment':
-                            flow['payment'] = {
-                                'id': payment,
-                                'label': self.graph.nodes[payment].get('label')
+                        if self.graph.nodes[payment].get("type") == "Payment":
+                            flow["payment"] = {
+                                "id": payment,
+                                "label": self.graph.nodes[payment].get("label"),
                             }
                             break
 
-                elif succ_type == 'Delivery':
-                    flow['delivery'] = {'id': successor, 'label': succ_label}
+                elif succ_type == "Delivery":
+                    flow["delivery"] = {"id": successor, "label": succ_label}
 
-                elif succ_type == 'Product':
-                    if 'products' not in flow:
-                        flow['products'] = []
-                    flow['products'].append({'id': successor, 'label': succ_label})
+                elif succ_type == "Product":
+                    if "products" not in flow:
+                        flow["products"] = []
+                    flow["products"].append({"id": successor, "label": succ_label})
 
-        elif entity_type == 'Invoice':
+        elif entity_type == "Invoice":
             # Invoice → Payment
             # Invoice ← Order
             for successor in self.graph.successors(entity_id):
-                if self.graph.nodes[successor].get('type') == 'Payment':
-                    flow['payment'] = {
-                        'id': successor,
-                        'label': self.graph.nodes[successor].get('label')
+                if self.graph.nodes[successor].get("type") == "Payment":
+                    flow["payment"] = {
+                        "id": successor,
+                        "label": self.graph.nodes[successor].get("label"),
                     }
 
             for predecessor in self.graph.predecessors(entity_id):
-                if self.graph.nodes[predecessor].get('type') == 'Order':
-                    flow['order'] = {
-                        'id': predecessor,
-                        'label': self.graph.nodes[predecessor].get('label')
+                if self.graph.nodes[predecessor].get("type") == "Order":
+                    flow["order"] = {
+                        "id": predecessor,
+                        "label": self.graph.nodes[predecessor].get("label"),
                     }
 
         return flow
@@ -419,52 +414,56 @@ Provide helpful, accurate answers based on this context."""
         """Format traversal results as natural language."""
         lines = [f"**Flow trace for {entity_id}:**\n"]
 
-        entity_type = flow.get('type')
+        entity_type = flow.get("type")
 
-        if entity_type == 'Order':
+        if entity_type == "Order":
             lines.append(f"📋 **Order**: {entity_id}")
 
-            if 'products' in flow:
+            if "products" in flow:
                 lines.append(f"  ↓ contains")
-                for prod in flow['products'][:5]:  # Limit to 5
+                for prod in flow["products"][:5]:  # Limit to 5
                     lines.append(f"  📦 **Product**: {prod['label']}")
 
-            if 'invoice' in flow:
-                inv = flow['invoice']
+            if "invoice" in flow:
+                inv = flow["invoice"]
                 lines.append(f"  ↓ generated")
                 lines.append(f"  📄 **Invoice**: {inv['id']}")
 
-                if 'payment' in flow:
-                    pay = flow['payment']
+                if "payment" in flow:
+                    pay = flow["payment"]
                     lines.append(f"    ↓ paid by")
                     lines.append(f"    💳 **Payment**: {pay['id']}")
 
-            if 'delivery' in flow:
-                deliv = flow['delivery']
+            if "delivery" in flow:
+                deliv = flow["delivery"]
                 lines.append(f"  ↓ resulted in")
                 lines.append(f"  🚚 **Delivery**: {deliv['id']}")
 
             # Check completeness
-            has_invoice = 'invoice' in flow
-            has_payment = 'payment' in flow
-            has_delivery = 'delivery' in flow
+            has_invoice = "invoice" in flow
+            has_payment = "payment" in flow
+            has_delivery = "delivery" in flow
 
-            lines.append(f"\n**Flow Status**: {'✅ Complete' if (has_invoice and has_payment and has_delivery) else '⚠️ Incomplete'}")
+            lines.append(
+                f"\n**Flow Status**: {'✅ Complete' if (has_invoice and has_payment and has_delivery) else '⚠️ Incomplete'}"
+            )
 
-        elif entity_type == 'Invoice':
+        elif entity_type == "Invoice":
             lines.append(f"📄 **Invoice**: {entity_id}")
 
-            if 'order' in flow:
+            if "order" in flow:
                 lines.append(f"  ← generated from")
                 lines.append(f"  📋 **Order**: {flow['order']['id']}")
 
-            if 'payment' in flow:
+            if "payment" in flow:
                 lines.append(f"  ↓ paid by")
                 lines.append(f"  💳 **Payment**: {flow['payment']['id']}")
 
         return "\n".join(lines)
 
-    def _format_aggregation_answer(self, query: str, data: List[Dict], explanation: str) -> str:
+    def _format_aggregation_answer(
+        self, query: str, data: List[Dict], explanation: str
+    ) -> str:
         """Format aggregation results."""
         if not data:
             return "No results found for your query."
@@ -493,28 +492,28 @@ Provide helpful, accurate answers based on this context."""
 
         lines.append(f"Found **{total}** potential issues:\n")
 
-        if anomalies['orders_without_invoices']:
-            count = len(anomalies['orders_without_invoices'])
+        if anomalies["orders_without_invoices"]:
+            count = len(anomalies["orders_without_invoices"])
             lines.append(f"📋 **{count} orders without invoices**")
-            for order_id in anomalies['orders_without_invoices'][:5]:
+            for order_id in anomalies["orders_without_invoices"][:5]:
                 lines.append(f"  - {order_id}")
             if count > 5:
                 lines.append(f"  ... and {count - 5} more")
             lines.append("")
 
-        if anomalies['orders_without_deliveries']:
-            count = len(anomalies['orders_without_deliveries'])
+        if anomalies["orders_without_deliveries"]:
+            count = len(anomalies["orders_without_deliveries"])
             lines.append(f"🚚 **{count} orders without deliveries**")
-            for order_id in anomalies['orders_without_deliveries'][:5]:
+            for order_id in anomalies["orders_without_deliveries"][:5]:
                 lines.append(f"  - {order_id}")
             if count > 5:
                 lines.append(f"  ... and {count - 5} more")
             lines.append("")
 
-        if anomalies['invoices_without_payments']:
-            count = len(anomalies['invoices_without_payments'])
+        if anomalies["invoices_without_payments"]:
+            count = len(anomalies["invoices_without_payments"])
             lines.append(f"💳 **{count} invoices without payments**")
-            for inv_id in anomalies['invoices_without_payments'][:5]:
+            for inv_id in anomalies["invoices_without_payments"][:5]:
                 lines.append(f"  - {inv_id}")
             if count > 5:
                 lines.append(f"  ... and {count - 5} more")

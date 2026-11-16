@@ -140,3 +140,26 @@ def test_scheme_to_driver_mapping(monkeypatch):
         except UnsafeURL as e:
             pytest.fail(f"{raw}: {e}")
         assert url.drivername == driver and d == dialect
+
+
+def test_postgres_read_only_settings_are_committed():
+    """Regression: psycopg2 runs the SETs in a transaction; without a commit the pool's rollback reverts them."""
+    from unittest.mock import MagicMock
+    from sqlalchemy import create_engine
+    from app.connectors.sessions import _install_read_only
+
+    engine = create_engine("sqlite://")
+    handlers = []
+    from sqlalchemy import event
+    real = event.listens_for
+    try:
+        event.listens_for = lambda target, name: (lambda fn: handlers.append(fn) or fn)
+        _install_read_only(engine, "postgresql")
+    finally:
+        event.listens_for = real
+    conn = MagicMock()
+    handlers[0](conn, None)
+    statements = [c.args[0] for c in conn.cursor.return_value.execute.call_args_list]
+    assert "SET default_transaction_read_only = on" in statements
+    assert any(s.startswith("SET statement_timeout") for s in statements)
+    conn.commit.assert_called_once()
