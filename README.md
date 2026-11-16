@@ -422,7 +422,7 @@ Frontend (React)          Backend (FastAPI)          Data Layer
 
 ## Contributing
 
-This project is part of an implementation plan. To contribute:
+Contributions are welcome. To contribute:
 
 1. Create a feature branch
 2. Make changes with tests
