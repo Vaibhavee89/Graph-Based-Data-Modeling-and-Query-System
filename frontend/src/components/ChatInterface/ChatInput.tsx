@@ -88,7 +88,6 @@ export default function ChatInput({ onSend, isLoading, disabled }: ChatInputProp
           {[
             "How many rows are in each table?",
             "Show the top 10 records by amount",
-            "List the most recent entries",
           ].map((example, idx) => (
             <button
               key={idx}

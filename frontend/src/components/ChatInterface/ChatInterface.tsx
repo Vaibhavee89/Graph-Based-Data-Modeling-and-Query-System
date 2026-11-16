@@ -207,7 +207,6 @@ export default function ChatInterface() {
                   <li>• "How many rows are in each table?"</li>
                   <li>• "Show the top 10 records by total amount"</li>
                   <li>• "Which customers have the most orders?"</li>
-                  <li>• "List the most recent entries"</li>
                 </ul>
               </div>
             </div>
