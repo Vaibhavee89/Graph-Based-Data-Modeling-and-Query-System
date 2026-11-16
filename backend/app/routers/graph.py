@@ -1,5 +1,5 @@
 """Graph API router."""
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional, List
 import json
@@ -161,7 +161,7 @@ async def get_node_neighbors(node_id: str):
 
 
 @router.post("/subgraph", response_model=GraphData)
-async def get_subgraph(node_ids: List[str]):
+async def get_subgraph(node_ids: List[str] = Body(..., max_length=2000)):
     """
     Get a subgraph containing specified nodes.
 

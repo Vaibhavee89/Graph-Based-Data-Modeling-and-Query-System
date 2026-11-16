@@ -68,11 +68,16 @@ export function extractEntityIds(text: string): string[] {
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
   delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>
+): ((...args: Parameters<T>) => void) & { cancel: () => void } {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId)
+  const debounced = (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId)
     timeoutId = setTimeout(() => func(...args), delay)
   }
+  debounced.cancel = () => {
+    if (timeoutId) clearTimeout(timeoutId)
+    timeoutId = undefined
+  }
+  return debounced
 }

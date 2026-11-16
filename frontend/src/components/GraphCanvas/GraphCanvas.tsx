@@ -1,7 +1,7 @@
 /**
  * Main graph canvas component with React Flow
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -85,7 +85,20 @@ function GraphCanvasInner() {
       setNodes(layoutedNodes)
       addNodes(initialNodes)
 
-      // For now, we'll add edges as we expand nodes
+      // Load the edges between the initial nodes so the graph isn't a bare cloud
+      let cancelled = false
+      graphAPI
+        .getSubgraph(initialNodes.map((n) => n.id))
+        .then((sub) => {
+          if (cancelled) return
+          setEdges(convertEdges(sub.edges))
+          addEdges(sub.edges)
+        })
+        .catch((error) => console.error('Failed to load initial edges:', error))
+
+      return () => {
+        cancelled = true
+      }
     }
   }, [initialNodes])
 
@@ -311,62 +324,97 @@ function GraphCanvasInner() {
     [nodes, onNodeDoubleClick]
   )
 
-  // Handle search
+  // Keep the latest values in refs so the debounced handler can stay stable
+  const nodesRef = useRef<Node[]>([])
+  const storeNodesRef = useRef(storeNodes)
+  const setCenterRef = useRef(setCenter)
+  const searchSeq = useRef(0)
+  nodesRef.current = nodes
+  storeNodesRef.current = storeNodes
+  setCenterRef.current = setCenter
+
+  const resetSearchHighlight = useCallback(() => {
+    setNodes((nds) =>
+      nds.some((n) => n.style?.opacity !== undefined && n.style.opacity !== 1)
+        ? nds.map((node) => ({ ...node, style: { ...node.style, opacity: 1 } }))
+        : nds
+    )
+  }, [])
+
+  // Handle search (created once; reads current state through refs)
   const handleSearch = useMemo(
     () =>
       debounce(async (query: string) => {
-        if (!query.trim()) {
-          // Reset to initial view
-          return
-        }
-
+        const seq = ++searchSeq.current
         try {
           const results = await graphAPI.searchNodes(query)
+          if (seq !== searchSeq.current) return // a newer search or a clear won
 
-          if (results.length > 0) {
-            // Highlight matching nodes
-            const matchingNodeIds = new Set(results.map((n) => n.id))
+          if (results.length === 0) {
+            resetSearchHighlight()
+            return
+          }
 
-            setNodes((nds) =>
-              nds.map((node) => ({
-                ...node,
-                style: {
-                  ...node.style,
-                  opacity: matchingNodeIds.has(node.id) ? 1 : 0.3,
-                },
-              }))
-            )
+          // Results that aren't on the canvas yet: add them, with their edges
+          const known = new Set(storeNodesRef.current.map((n) => n.id))
+          const missing = results.filter((n) => !known.has(n.id)).slice(0, 20)
+          if (missing.length > 0) {
+            const baseY = Math.max(0, ...nodesRef.current.map((n) => n.position.y)) + 200
+            const added: Node[] = missing.map((n, idx) => ({
+              id: n.id,
+              type: 'custom',
+              position: { x: 200 * idx, y: baseY },
+              data: { label: n.label, type: n.type, color: n.color, properties: n.properties },
+            }))
+            setNodes((nds) => [...nds, ...added])
+            addNodes(missing)
 
-            // Focus on first result
-            const firstResult = nodes.find((n) => n.id === results[0].id)
-            if (firstResult) {
-              setCenter(
-                firstResult.position.x,
-                firstResult.position.y,
-                { zoom: 1.5, duration: 800 }
-              )
+            try {
+              const allIds = [...nodesRef.current.map((n) => n.id), ...missing.map((n) => n.id)]
+              const sub = await graphAPI.getSubgraph(allIds)
+              if (seq !== searchSeq.current) return
+              const newEdges = convertEdges(sub.edges)
+              setEdges((eds) => {
+                const have = new Set(eds.map((e) => e.id))
+                return [...eds, ...newEdges.filter((e) => !have.has(e.id))]
+              })
+              addEdges(sub.edges)
+            } catch (error) {
+              console.error('Failed to load edges for search results:', error)
             }
+          }
+
+          const matchingNodeIds = new Set(results.map((n) => n.id))
+          setNodes((nds) =>
+            nds.map((node) => ({
+              ...node,
+              style: { ...node.style, opacity: matchingNodeIds.has(node.id) ? 1 : 0.3 },
+            }))
+          )
+
+          // Focus on the first result if it was already on the canvas
+          const target = nodesRef.current.find((n) => n.id === results[0].id)
+          if (target) {
+            setCenterRef.current(target.position.x, target.position.y, { zoom: 1.5, duration: 800 })
           }
         } catch (error) {
           console.error('Search failed:', error)
         }
       }, 500),
-    [nodes, setCenter]
+    [addNodes, addEdges, resetSearchHighlight]
   )
 
   useEffect(() => {
-    if (searchQuery) {
+    if (searchQuery.trim()) {
       handleSearch(searchQuery)
     } else {
-      // Reset opacity
-      setNodes((nds) =>
-        nds.map((node) => ({
-          ...node,
-          style: { ...node.style, opacity: 1 },
-        }))
-      )
+      // Cleared: drop any pending/in-flight search and restore opacity
+      handleSearch.cancel()
+      searchSeq.current++
+      resetSearchHighlight()
     }
-  }, [searchQuery, handleSearch])
+    return () => handleSearch.cancel()
+  }, [searchQuery, handleSearch, resetSearchHighlight])
 
   // Calculate legend data
   const legendData = useMemo(() => {

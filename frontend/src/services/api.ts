@@ -83,6 +83,14 @@ export const graphAPI = {
   },
 
   /**
+   * Get the nodes with the edges between them
+   */
+  getSubgraph: async (nodeIds: string[]): Promise<GraphData> => {
+    const response = await apiClient.post('/api/graph/subgraph', nodeIds);
+    return response.data;
+  },
+
+  /**
    * Export the whole graph as a JSON blob
    */
   exportGraph: async (): Promise<Blob> => {

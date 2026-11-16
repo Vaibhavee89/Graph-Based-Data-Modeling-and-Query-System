@@ -69,11 +69,13 @@ export function layoutNodes(
 export function convertEdges(
   backendEdges: Array<{ source: string; target: string; type: string; label: string }>
 ): Edge[] {
-  return backendEdges.map((edge, index) => ({
-    id: `${edge.source}-${edge.target}-${index}`,
+  return backendEdges.map((edge) => ({
+    // Deterministic id so the same edge is recognised across expansions
+    id: `${edge.source}-${edge.target}-${edge.type}`,
     source: edge.source,
     target: edge.target,
     type: 'smoothstep',
+    data: { type: edge.type },
     label: edge.label,
     animated: false,
     style: { stroke: '#94a3b8', strokeWidth: 2 },
