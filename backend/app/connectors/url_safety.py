@@ -1,8 +1,10 @@
 """Validate user-supplied database URLs before the server connects to them."""
 
 import ipaddress
+import re
 import socket
 from typing import Tuple
+from urllib.parse import quote, unquote
 
 from sqlalchemy.engine import URL, make_url
 
@@ -36,6 +38,26 @@ class UnsafeURL(ValueError):
     """Raised when a database URL is malformed or not allowed."""
 
 
+def _normalize_raw_url(raw: str) -> str:
+    """
+    People often paste a URL whose password contains an '@'. Because '@' also separates the
+    credentials from the host, that breaks parsing. Treat the LAST '@' in the authority as the
+    separator and percent-encode the password, so such URLs just work.
+    """
+    raw = raw.strip()
+    m = re.match(r"^([A-Za-z][A-Za-z0-9+.\-]*://)([^/?#]*)(.*)$", raw, re.S)
+    if not m:
+        return raw
+    scheme, authority, rest = m.groups()
+    if authority.count("@") <= 1:
+        return raw
+    userinfo, host = authority.rsplit("@", 1)
+    user, sep, password = userinfo.partition(":")
+    if not sep:
+        return raw
+    return f"{scheme}{user}:{quote(unquote(password), safe='')}@{host}{rest}"
+
+
 def parse_and_check(raw_url: str) -> Tuple[URL, str, str]:
     """
     Returns (sqlalchemy_url, sqlglot_dialect, backend_name).
@@ -43,7 +65,7 @@ def parse_and_check(raw_url: str) -> Tuple[URL, str, str]:
     Raises UnsafeURL with a user-safe message.
     """
     try:
-        url = make_url(raw_url.strip())
+        url = make_url(_normalize_raw_url(raw_url))
     except Exception:
         raise UnsafeURL("That doesn't look like a valid database URL.")
 
@@ -79,7 +101,10 @@ def _check_host(host: str) -> None:
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
-        raise UnsafeURL("Could not resolve the database host.")
+        raise UnsafeURL(
+            "Could not resolve the database host. If your password contains special characters "
+            "such as @, / or #, encode them (for example @ becomes %40)."
+        )
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
         if (

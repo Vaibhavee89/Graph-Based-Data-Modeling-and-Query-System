@@ -1,4 +1,5 @@
 """Tests for bring-your-own-database connections (exercised against SQLite)."""
+
 from unittest.mock import patch
 
 import pytest
@@ -19,9 +20,17 @@ def db_url(tmp_path):
     e = create_engine(f"sqlite:///{path}")
     with e.begin() as c:
         c.execute(text("CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)"))
-        c.execute(text("CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER REFERENCES customers(id), total REAL, placed TEXT)"))
+        c.execute(
+            text(
+                "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER REFERENCES customers(id), total REAL, placed TEXT)"
+            )
+        )
         c.execute(text("INSERT INTO customers VALUES (1,'Ada'),(2,'Grace')"))
-        c.execute(text("INSERT INTO orders VALUES (10,1,5.5,'2024-01-01 12:30'),(11,1,7,'2024-01-02 09:00'),(12,2,3,'2024-01-03 10:00')"))
+        c.execute(
+            text(
+                "INSERT INTO orders VALUES (10,1,5.5,'2024-01-01 12:30'),(11,1,7,'2024-01-02 09:00'),(12,2,3,'2024-01-03 10:00')"
+            )
+        )
     return f"sqlite:///{path}"
 
 
@@ -48,7 +57,9 @@ def test_connect_builds_graph_from_foreign_keys(client, db_url):
     nodes = client.get("/api/graph/nodes?node_type=customers", headers=h).json()
     assert {n["label"] for n in nodes} == {"Ada", "Grace"}
 
-    exp = client.post("/api/graph/nodes/customers:1/expand", json={"depth": 1}, headers=h).json()
+    exp = client.post(
+        "/api/graph/nodes/customers:1/expand", json={"depth": 1}, headers=h
+    ).json()
     assert len(exp["nodes"]) == 3  # Ada + her two orders
 
 
@@ -62,22 +73,38 @@ def test_session_is_isolated_and_expires(client, db_url):
 def test_query_runs_generated_sql_read_only(client, db_url):
     sid = client.post("/api/connect", json={"url": db_url}).json()["session_id"]
     h = {"X-Session-Id": sid}
-    llm = {"sql": "SELECT c.name, SUM(o.total) AS spent FROM customers c JOIN orders o ON o.customer_id=c.id WHERE o.placed > '2024-01-01 00:00' GROUP BY c.name ORDER BY spent DESC",
-           "explanation": "Spend per customer"}
-    with patch("app.connectors.query.GuardrailService.validate_query") as g, \
-         patch("app.connectors.query.LLMService.generate_structured", return_value=llm):
-        g.return_value.is_valid, g.return_value.reason, g.return_value.service_error = True, "ok", False
-        r = client.post("/api/query/chat", json={"query": "spend per customer"}, headers=h)
+    llm = {
+        "sql": "SELECT c.name, SUM(o.total) AS spent FROM customers c JOIN orders o ON o.customer_id=c.id WHERE o.placed > '2024-01-01 00:00' GROUP BY c.name ORDER BY spent DESC",
+        "explanation": "Spend per customer",
+    }
+    with patch("app.connectors.query.GuardrailService.validate_query") as g, patch(
+        "app.connectors.query.LLMService.generate_structured", return_value=llm
+    ):
+        g.return_value.is_valid, g.return_value.reason, g.return_value.service_error = (
+            True,
+            "ok",
+            False,
+        )
+        r = client.post(
+            "/api/query/chat", json={"query": "spend per customer"}, headers=h
+        )
     assert r.status_code == 200
     body = r.json()
     assert body["success"] is True, body
-    assert body["data"][0]["name"] == "Ada"  # the ':' in '12:30' literal must not break binding
+    assert (
+        body["data"][0]["name"] == "Ada"
+    )  # the ':' in '12:30' literal must not break binding
 
     # destructive SQL from the model is refused and nothing changes
     llm = {"sql": "DELETE FROM customers", "explanation": "x"}
-    with patch("app.connectors.query.GuardrailService.validate_query") as g, \
-         patch("app.connectors.query.LLMService.generate_structured", return_value=llm):
-        g.return_value.is_valid, g.return_value.reason, g.return_value.service_error = True, "ok", False
+    with patch("app.connectors.query.GuardrailService.validate_query") as g, patch(
+        "app.connectors.query.LLMService.generate_structured", return_value=llm
+    ):
+        g.return_value.is_valid, g.return_value.reason, g.return_value.service_error = (
+            True,
+            "ok",
+            False,
+        )
         r = client.post("/api/query/chat", json={"query": "wipe"}, headers=h)
     assert r.json()["success"] is False
     n = client.get("/api/graph/overview", headers=h).json()["node_types"]["customers"]
@@ -86,7 +113,10 @@ def test_query_runs_generated_sql_read_only(client, db_url):
 
 def test_sqlite_connection_pragma_blocks_writes(client, db_url):
     from app.connectors.sessions import sessions
-    s = sessions.get(client.post("/api/connect", json={"url": db_url}).json()["session_id"])
+
+    s = sessions.get(
+        client.post("/api/connect", json={"url": db_url}).json()["session_id"]
+    )
     with s.engine.connect() as c, pytest.raises(Exception):
         c.execute(text("DELETE FROM customers"))
 
@@ -94,8 +124,18 @@ def test_sqlite_connection_pragma_blocks_writes(client, db_url):
 def test_access_code_required_when_configured(client, db_url, monkeypatch):
     monkeypatch.setattr(settings, "access_code", "letmein")
     assert client.post("/api/connect", json={"url": db_url}).status_code == 401
-    assert client.post("/api/connect", json={"url": db_url}, headers={"X-Access-Code": "nope"}).status_code == 401
-    assert client.post("/api/connect", json={"url": db_url}, headers={"X-Access-Code": "letmein"}).status_code == 200
+    assert (
+        client.post(
+            "/api/connect", json={"url": db_url}, headers={"X-Access-Code": "nope"}
+        ).status_code
+        == 401
+    )
+    assert (
+        client.post(
+            "/api/connect", json={"url": db_url}, headers={"X-Access-Code": "letmein"}
+        ).status_code
+        == 200
+    )
 
 
 def test_connection_errors_do_not_leak_details(client):
@@ -104,16 +144,19 @@ def test_connection_errors_do_not_leak_details(client):
     assert "nonexistent" not in r.text
 
 
-@pytest.mark.parametrize("url", [
-    "postgresql://u:p@127.0.0.1:5432/db",
-    "mysql://u:p@localhost/db",
-    "postgresql://u:p@169.254.169.254/db",
-    "postgresql://u:p@10.0.0.5/db",
-    "mssql://u:p@192.168.1.10/db",
-    "postgresql://u:p@example.com/db?host=/var/run",
-    "mongodb://u:p@example.com/db",
-    "not a url",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql://u:p@127.0.0.1:5432/db",
+        "mysql://u:p@localhost/db",
+        "postgresql://u:p@169.254.169.254/db",
+        "postgresql://u:p@10.0.0.5/db",
+        "mssql://u:p@192.168.1.10/db",
+        "postgresql://u:p@example.com/db?host=/var/run",
+        "mongodb://u:p@example.com/db",
+        "not a url",
+    ],
+)
 def test_unsafe_urls_rejected(url, monkeypatch):
     monkeypatch.setattr(settings, "allow_private_hosts", False)
     with pytest.raises(UnsafeURL):
@@ -151,6 +194,7 @@ def test_postgres_read_only_settings_are_committed():
     engine = create_engine("sqlite://")
     handlers = []
     from sqlalchemy import event
+
     real = event.listens_for
     try:
         event.listens_for = lambda target, name: (lambda fn: handlers.append(fn) or fn)
@@ -165,14 +209,41 @@ def test_postgres_read_only_settings_are_committed():
     conn.commit.assert_called_once()
 
 
-@pytest.mark.parametrize("url", [
-    # exactly what Neon's dashboard gives you
-    "postgresql://user:pw@ep-cool-123.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    # Supabase pooler
-    "postgresql://postgres.abcdefgh:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres",
-    "postgresql://user:pw@host.example.com:5432/db?sslmode=require",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        # exactly what Neon's dashboard gives you
+        "postgresql://user:pw@ep-cool-123.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+        # Supabase pooler
+        "postgresql://postgres.abcdefgh:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres",
+        "postgresql://user:pw@host.example.com:5432/db?sslmode=require",
+    ],
+)
 def test_hosted_postgres_connection_strings_are_accepted(url, monkeypatch):
-    monkeypatch.setattr(settings, "allow_private_hosts", True)   # skip DNS for made-up hosts
+    monkeypatch.setattr(
+        settings, "allow_private_hosts", True
+    )  # skip DNS for made-up hosts
     parsed, dialect, backend = parse_and_check(url)
     assert dialect == "postgres" and backend == "postgresql"
+
+
+def test_password_with_raw_at_sign_is_handled(monkeypatch):
+    """A password like 'pa@ss' pasted unencoded must not turn part of the password into the host."""
+    monkeypatch.setattr(settings, "allow_private_hosts", True)  # skip DNS
+    raw = "postgresql://postgres.abc:pa@ss-w0rd-1@pooler.example.com:5432/postgres"
+    url, dialect, _ = parse_and_check(raw)
+    assert url.host == "pooler.example.com"
+    assert url.username == "postgres.abc"
+    assert url.password == "pa@ss-w0rd-1"
+
+    # an already-encoded password, and an ordinary URL, are left alone
+    url, _, _ = parse_and_check("postgresql://u:pa%40ss-w0rd-1@host.example.com/db")
+    assert url.host == "host.example.com" and url.password == "pa@ss-w0rd-1"
+    url, _, _ = parse_and_check("postgresql://u:plain@host.example.com/db")
+    assert url.host == "host.example.com" and url.password == "plain"
+
+
+def test_unresolvable_host_message_hints_at_special_characters(monkeypatch):
+    monkeypatch.setattr(settings, "allow_private_hosts", False)
+    with pytest.raises(UnsafeURL, match="encode them"):
+        parse_and_check("postgresql://u:p@this-host-does-not-exist.invalid/db")
