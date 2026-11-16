@@ -38,7 +38,7 @@ const nodeTypes = {
 }
 
 function GraphCanvasInner() {
-  const { setCenter } = useReactFlow()
+  const { setCenter, fitView, getViewport, setViewport } = useReactFlow()
   const {
     nodes: storeNodes,
     selectedNode,
@@ -51,6 +51,8 @@ function GraphCanvasInner() {
     highlightedEdges,
     focusRequest,
     clearFocusRequest,
+    requestFocus,
+    setFlowPath,
   } = useGraphStore()
 
   const [nodes, setNodes] = useState<Node[]>([])
@@ -152,6 +154,11 @@ function GraphCanvasInner() {
           },
         }
       }
+      // Not part of the current highlight: drop any styling left from an earlier one
+      if (node.data?.isHighlighted) {
+        const { border, boxShadow, ...restStyle } = (node.style || {}) as Record<string, unknown>
+        return { ...node, data: { ...node.data, isHighlighted: false }, style: restStyle }
+      }
       return node
     })
 
@@ -170,6 +177,10 @@ function GraphCanvasInner() {
             strokeWidth: 3,
           },
         }
+      }
+      if (edge.animated) {
+        const { stroke, strokeWidth, ...restStyle } = (edge.style || {}) as Record<string, unknown>
+        return { ...edge, animated: false, style: restStyle }
       }
       return edge
     })
@@ -253,75 +264,63 @@ function GraphCanvasInner() {
     [storeNodes, setSelectedNode]
   )
 
-  // Handle node double click (expand)
-  const onNodeDoubleClick: NodeMouseHandler = useCallback(
-    async (_event, node) => {
+  // Expand a node: fetch its direct connections, add any that are missing, highlight them all,
+  // and bring them into view. Says what happened even when everything was already on the canvas.
+  const expandAndShow = useCallback(
+    async (nodeId: string) => {
       if (isExpanding) return
-
       setIsExpanding(true)
       try {
-        const graphData = await graphAPI.expandNode(node.id, 1)
+        const graphData = await graphAPI.expandNode(nodeId, 1)
+        const known = new Set(useGraphStore.getState().nodes.map((n) => n.id))
+        const fresh = graphData.nodes.filter((n) => !known.has(n.id)).length
+        const others = graphData.nodes.length - 1
+        const label = graphData.nodes.find((n) => n.id === nodeId)?.label ?? nodeId
 
-        // Add new nodes
-        const newBackendNodes = graphData.nodes.filter(
-          (n) => !storeNodes.some((sn) => sn.id === n.id)
-        )
-
-        if (newBackendNodes.length > 0) {
-          // Layout new nodes around the clicked node
-          const clickedNodePosition = node.position
-          const newLayoutedNodes = newBackendNodes.map((n, idx) => {
-            const angle = (2 * Math.PI * idx) / newBackendNodes.length
-            const radius = 150
-            return {
-              id: n.id,
-              type: 'custom',
-              position: {
-                x: clickedNodePosition.x + radius * Math.cos(angle),
-                y: clickedNodePosition.y + radius * Math.sin(angle),
-              },
-              data: {
-                label: n.label,
-                type: n.type,
-                color: n.color,
-                properties: n.properties,
-              },
-            }
-          })
-
-          setNodes((nds) => [...nds, ...newLayoutedNodes])
-          addNodes(newBackendNodes)
-        }
-
-        // Add new edges
-        const newEdges = convertEdges(graphData.edges).filter(
-          (e) => !edges.some((se) => se.id === e.id)
-        )
-
-        if (newEdges.length > 0) {
-          setEdges((eds) => [...eds, ...newEdges])
-          addEdges(graphData.edges)
-        }
-
-        markNodeExpanded(node.id)
+        setFlowPath({
+          success: true,
+          path_nodes: graphData.nodes,
+          path_edges: graphData.edges,
+          status: 'complete',
+          message:
+            others === 0
+              ? `${label} has no connections`
+              : fresh === 0
+                ? `${label}: all ${others} connection${others === 1 ? '' : 's'} are already shown (highlighted)`
+                : `${label}: ${others} connection${others === 1 ? '' : 's'}, ${fresh} newly added`,
+        })
+        requestFocus(nodeId, graphData.nodes, graphData.edges)
+        markNodeExpanded(nodeId)
       } catch (error) {
         console.error('Failed to expand node:', error)
+        setFlowPath({
+          success: false,
+          path_nodes: [],
+          path_edges: [],
+          status: 'error',
+          message: 'Could not load connections for this node. Please try again.',
+        })
       } finally {
         setIsExpanding(false)
       }
     },
-    [storeNodes, edges, isExpanding, addNodes, addEdges, markNodeExpanded]
+    [isExpanding, requestFocus, setFlowPath, markNodeExpanded]
+  )
+
+  // Handle node double click (expand)
+  const onNodeDoubleClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      void expandAndShow(node.id)
+    },
+    [expandAndShow]
   )
 
   // Handle expand button click from details panel
   const handleExpand = useCallback(
     async (nodeId: string) => {
-      const node = nodes.find((n) => n.id === nodeId)
-      if (node) {
-        await onNodeDoubleClick({} as any, node)
-      }
+      await expandAndShow(nodeId)
     },
-    [nodes, onNodeDoubleClick]
+    [expandAndShow]
   )
 
   // Keep the latest values in refs so the debounced handler can stay stable
@@ -436,7 +435,7 @@ function GraphCanvasInner() {
       if (n.id !== nodeId) {
         const i = ring.findIndex((r) => r.id === n.id)
         const angle = (2 * Math.PI * i) / Math.max(ring.length, 1)
-        position = { x: anchor.x + 260 * Math.cos(angle), y: anchor.y + 260 * Math.sin(angle) }
+        position = { x: anchor.x + 300 * Math.cos(angle), y: anchor.y + 300 * Math.sin(angle) }
       }
       return {
         id: n.id,
@@ -477,7 +476,15 @@ function GraphCanvasInner() {
     const target = incoming.find((n) => n.id === nodeId)
     if (target) setSelectedNode(target)
 
-    setTimeout(() => setCenterRef.current(anchor.x + 80, anchor.y + 25, { zoom: 1, duration: 600 }), 80)
+    // After the nodes are on the canvas, frame the entity together with its connections
+    setTimeout(() => {
+      fitView({ nodes: incoming.map((n) => ({ id: n.id })), padding: 0.3, maxZoom: 1.1, duration: 500 })
+      // The details panel (w-96) covers the right side of the canvas: slide the view left so the result isn't hidden
+      setTimeout(() => {
+        const v = getViewport()
+        setViewport({ ...v, x: v.x - 190 }, { duration: 250 })
+      }, 560)
+    }, 120)
     clearFocusRequest()
   }, [focusRequest])
 
@@ -561,7 +568,7 @@ function GraphCanvasInner() {
 
         {/* Instructions Panel */}
         {nodes.length > 0 && !flowPath && (
-          <Panel position="top-center" className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+          <Panel position="top-left" className="mt-14 max-w-sm bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
             <p className="text-sm text-blue-900">
               <strong>Click</strong> to view details • <strong>Double-click</strong> to expand connections
             </p>
@@ -570,7 +577,7 @@ function GraphCanvasInner() {
 
         {/* Flow Status Panel */}
         {flowPath && (
-          <Panel position="top-center" className={`border rounded-lg px-4 py-2 ${
+          <Panel position="top-left" className={`mt-14 max-w-sm border rounded-lg px-4 py-2 ${
             flowPath.status === 'complete' ? 'bg-green-50 border-green-200' :
             flowPath.status === 'partial' ? 'bg-yellow-50 border-yellow-200' :
             'bg-red-50 border-red-200'
@@ -582,7 +589,11 @@ function GraphCanvasInner() {
                 flowPath.status === 'partial' ? 'text-yellow-900' :
                 'text-red-900'
               }`}>
-                {getFlowStatusLabel(flowPath.status)} - {flowPath.path_nodes.length} nodes highlighted
+                {flowPath.message
+                  ? flowPath.path_nodes.length > 0
+                    ? `${flowPath.message} · ${flowPath.path_nodes.length} nodes highlighted`
+                    : flowPath.message
+                  : `${getFlowStatusLabel(flowPath.status)} - ${flowPath.path_nodes.length} nodes highlighted`}
               </p>
               <button
                 onClick={() => useGraphStore.getState().clearFlowHighlight()}
