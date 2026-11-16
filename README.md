@@ -170,3 +170,7 @@ Ideas for next steps: other schemas, a persistent session store, streaming answe
 - [TESTING.md](TESTING.md): running the tests
 - [docs/USER_FLOW.md](docs/USER_FLOW.md): user flows
 - [docs/DATA_INTEGRATION_GUIDE.md](docs/DATA_INTEGRATION_GUIDE.md) and [SAP_O2C_SETUP.md](SAP_O2C_SETUP.md): the original ETL pipeline for loading CSV or SAP exports
+
+## License
+
+MIT. See [LICENSE](LICENSE).
