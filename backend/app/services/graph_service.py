@@ -295,12 +295,18 @@ class GraphService:
         if self.graph.has_node(ref):
             return ref
         suffix = ":" + ref
-        matches = sorted(n for n in self.graph.nodes if isinstance(n, str) and n.endswith(suffix))
+        matches = sorted(
+            n for n in self.graph.nodes if isinstance(n, str) and n.endswith(suffix)
+        )
         if matches:
             return matches[0]
         # Last resort: case-insensitive key match
         low = suffix.lower()
-        matches = sorted(n for n in self.graph.nodes if isinstance(n, str) and n.lower().endswith(low))
+        matches = sorted(
+            n
+            for n in self.graph.nodes
+            if isinstance(n, str) and n.lower().endswith(low)
+        )
         return matches[0] if matches else None
 
     def focus(self, ref: str) -> Optional[dict]:

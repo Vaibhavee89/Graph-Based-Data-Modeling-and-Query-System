@@ -70,3 +70,7 @@ docker-compose.override.yml
 
 # Keep the bundled sample dataset
 !backend/sample_data/*.csv
+
+# Generated coverage output
+coverage.xml
+coverage/

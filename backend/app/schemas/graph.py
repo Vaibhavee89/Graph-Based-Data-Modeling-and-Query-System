@@ -79,6 +79,7 @@ class FlowTraceResponse(BaseModel):
 
 class FocusResponse(BaseModel):
     """A node found by reference (e.g. 'ORD-008'), with its direct connections."""
+
     node_id: str
     nodes: List[GraphNode]
     edges: List[GraphEdge]
