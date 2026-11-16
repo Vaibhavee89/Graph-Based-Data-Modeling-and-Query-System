@@ -52,3 +52,20 @@ def test_errors_do_not_leak_internal_details():
     resp = svc.process_query("how many orders")
     assert resp.success is False
     assert "secret" not in (resp.message or "") + (resp.answer or "")
+
+
+def test_llm_outage_is_reported_as_unavailable_not_off_topic():
+    from app.services.guardrail_service import GuardrailService
+    with patch("app.services.guardrail_service.LLMService") as llm:
+        llm.return_value.generate_structured.side_effect = Exception("boom")
+        svc = QueryService(Mock(), nx.DiGraph())
+        svc.guardrail = GuardrailService()
+    resp = svc.process_query("how many orders")
+    assert resp.success is False
+    assert "unavailable" in resp.answer.lower()
+    assert "only answer questions" not in resp.answer
+
+
+def test_oversized_and_empty_queries_rejected(client):
+    assert client.post("/api/query/chat", json={"query": "x" * 2001}).status_code == 422
+    assert client.post("/api/query/chat", json={"query": ""}).status_code == 422

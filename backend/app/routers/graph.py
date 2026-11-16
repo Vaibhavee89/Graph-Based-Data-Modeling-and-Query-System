@@ -70,7 +70,33 @@ async def get_nodes(
     return service.get_nodes(limit=limit, offset=offset, node_type=node_type)
 
 
-@router.get("/nodes/{node_id}", response_model=GraphNode)
+@router.get("/nodes/{node_id:path}/neighbors", response_model=dict)
+async def get_node_neighbors(node_id: str, service: GraphService = Depends(get_graph_service)):
+    """
+    Get neighbors of a node grouped by relationship type.
+
+    Path Parameters:
+    - node_id: Node identifier
+
+    Returns dictionary mapping edge types to lists of neighbor nodes.
+
+    Raises:
+    - 404: Node not found
+    """
+    if not service.graph.has_node(node_id):
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+
+    neighbors = service.get_node_neighbors(node_id)
+
+    # Convert to serializable format
+    result = {}
+    for edge_type, nodes in neighbors.items():
+        result[edge_type] = [node.model_dump() for node in nodes]
+
+    return result
+
+
+@router.get("/nodes/{node_id:path}", response_model=GraphNode)
 async def get_node(node_id: str, service: GraphService = Depends(get_graph_service)):
     """
     Get a specific node by ID.
@@ -91,7 +117,7 @@ async def get_node(node_id: str, service: GraphService = Depends(get_graph_servi
     return node
 
 
-@router.post("/nodes/{node_id}/expand", response_model=GraphData)
+@router.post("/nodes/{node_id:path}/expand", response_model=GraphData)
 async def expand_node(node_id: str, request: NodeExpandRequest, service: GraphService = Depends(get_graph_service)):
     """
     Expand a node to get its connected nodes and edges.
@@ -137,32 +163,6 @@ async def search_nodes(request: NodeSearchRequest, service: GraphService = Depen
     )
 
 
-@router.get("/nodes/{node_id}/neighbors", response_model=dict)
-async def get_node_neighbors(node_id: str, service: GraphService = Depends(get_graph_service)):
-    """
-    Get neighbors of a node grouped by relationship type.
-
-    Path Parameters:
-    - node_id: Node identifier
-
-    Returns dictionary mapping edge types to lists of neighbor nodes.
-
-    Raises:
-    - 404: Node not found
-    """
-    if not service.graph.has_node(node_id):
-        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
-
-    neighbors = service.get_node_neighbors(node_id)
-
-    # Convert to serializable format
-    result = {}
-    for edge_type, nodes in neighbors.items():
-        result[edge_type] = [node.model_dump() for node in nodes]
-
-    return result
-
-
 @router.post("/subgraph", response_model=GraphData)
 async def get_subgraph(node_ids: List[str] = Body(..., max_length=2000), service: GraphService = Depends(get_graph_service)):
     """
@@ -177,7 +177,7 @@ async def get_subgraph(node_ids: List[str] = Body(..., max_length=2000), service
     return service.get_subgraph(node_ids)
 
 
-@router.get("/trace/{entity_id}", response_model=FlowTraceResponse)
+@router.get("/trace/{entity_id:path}", response_model=FlowTraceResponse)
 async def trace_flow(entity_id: str, service: GraphService = Depends(get_graph_service)):
     """
     Trace flow through the graph for visualization.

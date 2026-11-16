@@ -36,7 +36,7 @@ export default function ChatInput({ onSend, isLoading, disabled }: ChatInputProp
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask a question about your business data..."
+            placeholder="Ask a question about your data..."
             disabled={isLoading || disabled}
             rows={3}
             className={cn(
@@ -86,9 +86,9 @@ export default function ChatInput({ onSend, isLoading, disabled }: ChatInputProp
         <p className="text-xs font-medium text-gray-600 mb-2">Example queries:</p>
         <div className="flex flex-wrap gap-2">
           {[
-            "Which customers have the most orders?",
-            "Find orders with incomplete flows",
-            "Show me top 5 products",
+            "How many rows are in each table?",
+            "Show the top 10 records by amount",
+            "List the most recent entries",
           ].map((example, idx) => (
             <button
               key={idx}

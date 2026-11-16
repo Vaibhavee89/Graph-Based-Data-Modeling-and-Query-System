@@ -108,7 +108,8 @@ Return JSON with this structure:
             # Fail closed: if the domain check can't run, don't let the query through
             return GuardrailResult(
                 is_valid=False,
-                reason="Validation error, query rejected"
+                reason="Validation error, query rejected",
+                service_error=True,
             )
 
     def is_domain_related(self, query: str) -> bool:

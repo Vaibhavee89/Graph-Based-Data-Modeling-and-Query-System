@@ -1,4 +1,5 @@
 """In-memory sessions for user-supplied database connections. Credentials are never persisted."""
+import os
 import secrets
 import threading
 import time
@@ -98,7 +99,7 @@ class SessionManager:
 
         session = DbSession(
             token=secrets.token_urlsafe(32), engine=engine, dialect=dialect, backend=backend,
-            database=url.database or backend, schema=schema, graph=graph,
+            database=(os.path.basename(url.database) if backend == "sqlite" and url.database else url.database) or backend, schema=schema, graph=graph,
             expires_at=time.time() + settings.session_ttl_minutes * 60,
         )
         with self._lock:

@@ -49,6 +49,12 @@ class QueryService:
         validation = self.guardrail.validate_query(query)
         print(f"Validation: {validation.is_valid} - {validation.reason}")
 
+        if validation.service_error:
+            return QueryResponse(
+                success=False,
+                message="AI service unavailable",
+                answer="The AI service is temporarily unavailable. Please try again in a moment.",
+            )
         if not validation.is_valid:
             return QueryResponse(
                 success=False,

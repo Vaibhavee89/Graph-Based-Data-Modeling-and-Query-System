@@ -49,6 +49,12 @@ class GenericQueryService:
     def process_query(self, query: str) -> QueryResponse:
         schema_text = self.session.schema.to_prompt()
         verdict = self.guardrail.validate_query(query, domain_description=schema_text)
+        if verdict.service_error:
+            return QueryResponse(
+                success=False,
+                message="AI service unavailable",
+                answer="The AI service is temporarily unavailable. Please try again in a moment.",
+            )
         if not verdict.is_valid:
             return QueryResponse(
                 success=False,

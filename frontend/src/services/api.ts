@@ -12,6 +12,9 @@ import type {
 } from '@/types';
 
 // Get API URL from environment variable or use default
+// Node ids come from user data and may contain '/', '?', '#', spaces...
+const encodeId = (id: string) => id.split('/').map(encodeURIComponent).join('/');
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Create axios instance
@@ -69,7 +72,7 @@ export const graphAPI = {
    * Get a specific node by ID
    */
   getNode: async (nodeId: string): Promise<GraphNode> => {
-    const response = await apiClient.get(`/api/graph/nodes/${nodeId}`);
+    const response = await apiClient.get(`/api/graph/nodes/${encodeId(nodeId)}`);
     return response.data;
   },
 
@@ -80,7 +83,7 @@ export const graphAPI = {
     nodeId: string,
     depth: number = 1
   ): Promise<GraphData> => {
-    const response = await apiClient.post(`/api/graph/nodes/${nodeId}/expand`, {
+    const response = await apiClient.post(`/api/graph/nodes/${encodeId(nodeId)}/expand`, {
       depth,
     });
     return response.data;
@@ -116,7 +119,7 @@ export const graphAPI = {
    * Trace flow through the graph
    */
   traceFlow: async (entityId: string): Promise<FlowTraceResponse> => {
-    const response = await apiClient.get(`/api/graph/trace/${entityId}`);
+    const response = await apiClient.get(`/api/graph/trace/${encodeId(entityId)}`);
     return response.data;
   },
 };

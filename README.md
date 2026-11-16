@@ -128,7 +128,7 @@ This project converts business data (orders, deliveries, invoices, payments, cus
 ### Prerequisites
 
 - **Python 3.11+**
-- **Node.js 18+**
+- **Node.js 20.19+ (or 22+)**
 - **Docker & Docker Compose** (for PostgreSQL)
 - **Anthropic API Key** (get from https://console.anthropic.com)
 
@@ -428,7 +428,7 @@ Frontend (React)          Backend (FastAPI)          Data Layer
 
 ### Frontend build errors
 - Clear node_modules: `rm -rf node_modules && npm install`
-- Check Node version: `node --version` (should be 18+)
+- Check Node version: `node --version` (should be 20.19+ or 22+)
 
 ### Query errors
 - Verify `ANTHROPIC_API_KEY` is set correctly

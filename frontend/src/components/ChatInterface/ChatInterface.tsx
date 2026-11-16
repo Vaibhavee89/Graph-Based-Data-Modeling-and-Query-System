@@ -139,7 +139,7 @@ export default function ChatInterface() {
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Chat Assistant</h2>
           <p className="text-sm text-gray-500">
-            Ask questions about your business data
+            Ask questions about your data
           </p>
         </div>
         <div className="flex items-center gap-2">

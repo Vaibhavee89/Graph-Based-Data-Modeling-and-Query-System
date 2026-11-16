@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Opening a connection is expensive and probes the network: limit it harder than chat.
-_connect_limiter = RateLimiter(limit=5, window=60)
+_connect_limiter = RateLimiter(limit=settings.connect_rate_limit_per_minute, window=60)
 
 
 class ConnectRequest(BaseModel):

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     access_code: Optional[str] = None           # if set, required to open a connection
     allow_private_hosts: bool = False           # allow localhost / private IPs (local dev only)
     allow_sqlite_connections: bool = False      # sqlite URLs read server-side files (local dev/tests only)
+    connect_rate_limit_per_minute: int = 5
     session_ttl_minutes: int = 30
     max_sessions: int = 20
     max_tables: int = 100

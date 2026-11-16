@@ -5,7 +5,7 @@ This document explains how to run tests for the Graph Data Modeling System.
 ## Prerequisites
 
 - Python 3.11+ installed
-- Node.js 18+ installed
+- Node.js 20.19+ (or 22+) installed
 - Backend dependencies installed (`pip install -r requirements.txt`)
 - Frontend dependencies installed (`npm install`)
 

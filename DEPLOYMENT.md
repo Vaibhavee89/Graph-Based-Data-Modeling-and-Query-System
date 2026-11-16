@@ -28,7 +28,7 @@ Complete guide for deploying the Graph Data Modeling System to production.
 ### Required Tools
 - Docker & Docker Compose
 - Git
-- Node.js 18+
+- Node.js 20.19+ (or 22+)
 - Python 3.11+
 
 ---

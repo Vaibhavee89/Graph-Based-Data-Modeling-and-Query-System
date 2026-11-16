@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 
 class QueryRequest(BaseModel):
     """Natural language query request."""
-    query: str = Field(description="Natural language query")
+    query: str = Field(min_length=1, max_length=2000, description="Natural language query")
 
 
 class QueryResponse(BaseModel):
@@ -22,6 +22,7 @@ class GuardrailResult(BaseModel):
     """Result from guardrail validation."""
     is_valid: bool = Field(description="Whether query is domain-related")
     reason: str = Field(description="Reason for validation result")
+    service_error: bool = Field(default=False, description="True when the check could not run (e.g. LLM unavailable)")
 
 
 class IntentClassification(BaseModel):

@@ -66,7 +66,7 @@ def test_query_runs_generated_sql_read_only(client, db_url):
            "explanation": "Spend per customer"}
     with patch("app.connectors.query.GuardrailService.validate_query") as g, \
          patch("app.connectors.query.LLMService.generate_structured", return_value=llm):
-        g.return_value.is_valid, g.return_value.reason = True, "ok"
+        g.return_value.is_valid, g.return_value.reason, g.return_value.service_error = True, "ok", False
         r = client.post("/api/query/chat", json={"query": "spend per customer"}, headers=h)
     assert r.status_code == 200
     body = r.json()
@@ -77,7 +77,7 @@ def test_query_runs_generated_sql_read_only(client, db_url):
     llm = {"sql": "DELETE FROM customers", "explanation": "x"}
     with patch("app.connectors.query.GuardrailService.validate_query") as g, \
          patch("app.connectors.query.LLMService.generate_structured", return_value=llm):
-        g.return_value.is_valid, g.return_value.reason = True, "ok"
+        g.return_value.is_valid, g.return_value.reason, g.return_value.service_error = True, "ok", False
         r = client.post("/api/query/chat", json={"query": "wipe"}, headers=h)
     assert r.json()["success"] is False
     n = client.get("/api/graph/overview", headers=h).json()["node_types"]["customers"]
