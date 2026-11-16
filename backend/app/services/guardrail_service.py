@@ -1,6 +1,10 @@
 """Guardrail service - Validates queries are domain-related."""
+import logging
+
 from app.services.llm_service import LLMService
 from app.schemas.query import GuardrailResult
+
+logger = logging.getLogger(__name__)
 
 
 class GuardrailService:
@@ -80,11 +84,11 @@ Return JSON with this structure:
             )
 
         except Exception as e:
-            print(f"Guardrail validation error: {e}")
+            logger.exception("Guardrail validation error")
             # Fail closed: if the domain check can't run, don't let the query through
             return GuardrailResult(
                 is_valid=False,
-                reason=f"Validation unavailable, query rejected: {str(e)}"
+                reason="Validation error, query rejected"
             )
 
     def is_domain_related(self, query: str) -> bool:

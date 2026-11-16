@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.graph_store import get_graph
+from app.core.rate_limit import rate_limit_chat
 from app.services.query_service import QueryService
 from app.schemas.query import QueryRequest, QueryResponse
 
@@ -19,8 +20,8 @@ def get_query_service(
     return QueryService(db, graph)
 
 
-@router.post("/chat", response_model=QueryResponse)
-async def chat(
+@router.post("/chat", response_model=QueryResponse, dependencies=[Depends(rate_limit_chat)])
+def chat(
     request: QueryRequest,
     service: QueryService = Depends(get_query_service)
 ):
@@ -53,7 +54,8 @@ async def chat(
     - Only domain-related queries accepted
     - Off-topic queries are rejected with explanation
     - SQL injection prevention (read-only queries)
-    - Timeout protection (30 seconds max)
+    - Timeout protection (QUERY_TIMEOUT seconds on SQL)
+    - Rate limited per client (RATE_LIMIT_PER_MINUTE); returns 429 when exceeded
     """
     return service.process_query(request.query)
 

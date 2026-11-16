@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     query_timeout: int = 30  # seconds
     max_query_results: int = 1000
     rate_limit_per_minute: int = 10
+    # Only enable behind a trusted reverse proxy (Railway, nginx): X-Forwarded-For is spoofable otherwise
+    trust_proxy_headers: bool = False
 
     # Graph Settings
     initial_node_limit: int = 500

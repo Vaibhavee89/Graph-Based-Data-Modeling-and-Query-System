@@ -1,4 +1,5 @@
 """Query service - Natural language query processing."""
+import logging
 import re
 import networkx as nx
 from typing import Dict, Any, List, Optional, Tuple
@@ -10,6 +11,8 @@ from app.services.guardrail_service import GuardrailService
 from app.config import settings
 from app.utils.sql_safety import validate_sql
 from app.schemas.query import QueryResponse, IntentClassification
+
+logger = logging.getLogger(__name__)
 
 
 class QueryService:
@@ -81,13 +84,11 @@ class QueryService:
             return result
 
         except Exception as e:
-            print(f"Query processing error: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("Query processing error")
 
             return QueryResponse(
                 success=False,
-                message=f"Error processing query: {str(e)}",
+                message="Error processing query",
                 answer="I encountered an error processing your query. Please try rephrasing your question."
             )
 
@@ -233,10 +234,10 @@ Return JSON:
             )
 
         except Exception as e:
-            print(f"Aggregation error: {e}")
+            logger.exception("Aggregation error")
             return QueryResponse(
                 success=False,
-                message=str(e),
+                message="Could not run the generated query",
                 answer="I encountered an error executing your query. Please try rephrasing."
             )
 
@@ -351,10 +352,11 @@ Provide helpful, accurate answers based on this context."""
                 success=True,
                 answer=answer
             )
-        except Exception as e:
+        except Exception:
+            logger.exception("General query error")
             return QueryResponse(
                 success=False,
-                message=str(e),
+                message="Error processing query",
                 answer="I encountered an error. Please try rephrasing your question."
             )
 
