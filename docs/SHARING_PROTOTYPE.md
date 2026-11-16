@@ -18,28 +18,30 @@ Tables without a primary key are queryable but not drawn. Only the default schem
 
 Run the backend as **one process**. Sessions are held in memory, so several workers or replicas would log users out at random.
 
-### 1. Backend on Railway (or any Docker host)
+### 1. Backend on Render (free tier)
 
-1. railway.app → New Project → Deploy from GitHub repo → pick this repo → set **Root Directory** to `backend`.
-2. Variables (Settings → Variables):
+The repo includes [render.yaml](../render.yaml), so most settings are pre-filled.
+
+1. render.com → **New → Blueprint** → connect your GitHub account → pick this repo → **Apply**.
+2. Render asks for three values:
 
    | Variable | Value |
    |---|---|
-   | `GROQ_API_KEY` | your Groq key (or `ANTHROPIC_API_KEY`) |
-   | `GROQ_MODEL` | `openai/gpt-oss-120b` (check console.groq.com/docs/models if it errors) |
-   | `DATABASE_URL` | `sqlite:///./app.db` (no Postgres needed; the app's own DB is only a scratch file) |
-   | `TRUST_PROXY_HEADERS` | `true` |
-   | `ACCESS_CODE` | a shared secret for connecting your own database (optional but recommended) |
-   | `CORS_ORIGINS` | your frontend URL, set after step 2 (no trailing slash) |
+   | `GROQ_API_KEY` | your Groq key (or set `ANTHROPIC_API_KEY` in the dashboard afterwards) |
+   | `ACCESS_CODE` | a shared secret required to connect your own database |
+   | `CORS_ORIGINS` | your Vercel URL (no trailing slash). Put a placeholder first and update it after step 2 |
 
-   Leave `ALLOW_PRIVATE_HOSTS` and `ALLOW_SQLITE_CONNECTIONS` unset.
-3. Settings → Networking → Generate Domain. Check `https://<backend>/health` returns `{"status":"healthy"...}`.
+3. When the deploy finishes, open `https://<service>.onrender.com/health`. It should return `{"status":"healthy"...}`.
+
+Free-tier behaviour: the service sleeps after ~15 minutes without visitors and takes about a minute to wake on the next visit. Each wake-up drops connected-database sessions; users simply reconnect. The built-in sample data comes back automatically.
+
+Other Docker hosts (Railway, Fly.io, ...) work with the same `backend/Dockerfile`; set the same variables and keep a single process. Hugging Face Docker Spaces currently require a PRO subscription.
 
 ### 2. Frontend on Vercel
 
 1. vercel.com → Add New Project → import the repo → **Root Directory** `frontend`.
-2. Environment variable: `VITE_API_URL` = `https://<backend-domain>` (no trailing slash).
-3. Deploy, then copy the Vercel URL into the backend's `CORS_ORIGINS` and redeploy the backend.
+2. Environment variable: `VITE_API_URL` = `https://<service>.onrender.com` (no trailing slash).
+3. Deploy, then copy the Vercel URL into the backend's `CORS_ORIGINS` (Render → Environment) and let it redeploy.
 
 ### 3. Share
 

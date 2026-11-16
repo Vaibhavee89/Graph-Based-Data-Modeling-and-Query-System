@@ -1,0 +1,29 @@
+# Render Blueprint: backend on the free tier. Frontend is deployed separately (Vercel).
+services:
+  - type: web
+    name: graph-query-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "8000"
+      # The app's own scratch DB (the built-in sample data is in memory); no Postgres needed
+      - key: DATABASE_URL
+        value: sqlite:////tmp/app.db
+      - key: GRAPH_PICKLE_PATH
+        value: /tmp/none.pickle
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      # Secrets and per-deployment values: Render asks for these when you create the Blueprint
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ACCESS_CODE
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
