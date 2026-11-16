@@ -311,38 +311,22 @@ psql $DATABASE_URL < backup.sql
 
 ## CI/CD Configuration
 
-### GitHub Secrets
+### Continuous integration
 
-Add these secrets in GitHub repository settings:
+The GitHub Actions workflow in `.github/workflows/test.yml` runs on every push and pull request:
 
-```
-RAILWAY_TOKEN=your_railway_token
-VERCEL_TOKEN=your_vercel_token
-BACKEND_URL=https://your-backend.up.railway.app
-FRONTEND_URL=https://your-frontend.vercel.app
-ANTHROPIC_API_KEY=sk-ant-xxxxx
-```
+- Backend: lint (flake8, black, isort), tests with coverage
+- Frontend: lint, tests with coverage
+- Docker: builds the backend and frontend images
 
-### Automated Deployments
+No secrets are needed for these checks.
 
-**On Pull Request:**
-- Run tests (backend + frontend)
-- Build Docker images
-- Check code quality
+### Deployments
 
-**On Merge to Main:**
-- Deploy backend to Railway
-- Deploy frontend to Vercel
-- Run database migrations
-- Verify deployments
+Deployments are handled by the hosting platforms themselves, not by GitHub Actions:
 
-### Manual Deployment
-
-```bash
-# Trigger deploy manually
-gh workflow run deploy-backend.yml
-gh workflow run deploy-frontend.yml
-```
+- **Backend (Render):** auto-deploys from the `main` branch using `render.yaml`. See [docs/SHARING_PROTOTYPE.md](docs/SHARING_PROTOTYPE.md).
+- **Frontend (Vercel):** connect the repository under Project Settings, Git, and every push to `main` deploys automatically. Set `VITE_API_URL` to the backend address.
 
 ---
 
