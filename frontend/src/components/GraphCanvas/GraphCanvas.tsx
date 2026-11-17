@@ -19,7 +19,7 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Loader2, Download } from 'lucide-react'
+import { Search, Loader2, Download, Info, Minus } from 'lucide-react'
 
 import { graphAPI } from '@/services/api'
 import { getTimestampedFilename } from '@/lib/export'
@@ -59,6 +59,23 @@ function GraphCanvasInner() {
   const [edges, setEdges] = useState<Edge[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isExpanding, setIsExpanding] = useState(false)
+
+  // The "click / double-click" tips can be minimized; the choice is remembered in this browser
+  const [hintOpen, setHintOpen] = useState(() => {
+    try {
+      return localStorage.getItem('graph-hint-open') !== 'false'
+    } catch {
+      return true
+    }
+  })
+  const toggleHint = useCallback((open: boolean) => {
+    setHintOpen(open)
+    try {
+      localStorage.setItem('graph-hint-open', String(open))
+    } catch {
+      /* storage unavailable: the choice just lasts for this visit */
+    }
+  }, [])
 
   const sessionId = useSessionStore((st) => st.session?.sessionId ?? 'demo')
 
@@ -566,12 +583,33 @@ function GraphCanvasInner() {
           </div>
         </Panel>
 
-        {/* Instructions Panel */}
+        {/* Instructions Panel (can be minimized) */}
         {nodes.length > 0 && !flowPath && (
-          <Panel position="top-left" className="mt-14 max-w-sm bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-            <p className="text-sm text-blue-900">
-              <strong>Click</strong> to view details • <strong>Double-click</strong> to expand connections
-            </p>
+          <Panel position="top-left" className="mt-14 max-w-sm">
+            {hintOpen ? (
+              <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg pl-4 pr-2 py-2">
+                <p className="text-sm text-blue-900">
+                  <strong>Click</strong> to view details • <strong>Double-click</strong> to expand connections
+                </p>
+                <button
+                  onClick={() => toggleHint(false)}
+                  className="shrink-0 p-1 text-blue-700 hover:bg-blue-100 rounded transition-colors"
+                  title="Minimize tips"
+                  aria-label="Minimize tips"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => toggleHint(true)}
+                className="p-2 bg-blue-50 border border-blue-200 rounded-full text-blue-700 hover:bg-blue-100 shadow-sm transition-colors"
+                title="Show tips"
+                aria-label="Show tips"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            )}
           </Panel>
         )}
 
