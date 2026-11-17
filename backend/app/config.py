@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     connect_rate_limit_per_minute: int = 5
     session_ttl_minutes: int = 30
     max_sessions: int = 20
+    max_sessions_per_client: int = 3  # stops one visitor from hogging every slot
     max_tables: int = 100
     max_rows_per_table: int = 200
     max_graph_nodes: int = 5000

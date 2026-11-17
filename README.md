@@ -40,8 +40,8 @@ Running model-written SQL against someone's database needs several independent l
 | SQL validation | Parsed with `sqlglot` in the target dialect. One statement, `SELECT` only, known tables only, no `INTO` or locking, and file, sleep and network functions blocked. A row limit is always enforced. |
 | Read-only sessions | PostgreSQL `default_transaction_read_only`, MySQL `READ ONLY`, SQLite `query_only`, Oracle read-only transactions. A statement timeout is set where the database supports it. |
 | Connection URLs | Only known database types. Private, loopback and cloud-metadata addresses are refused (SSRF protection), and unknown connection options are rejected. |
-| Access control | An optional shared access code protects the "connect your own database" feature. |
-| Abuse limits | Per-client rate limits on questions and on connection attempts, a question length cap, and a cap on concurrent sessions. |
+| Access control | Open by default. An optional shared access code (`ACCESS_CODE`) can protect the "connect your own database" feature. |
+| Abuse limits | Per-client rate limits on questions and on connection attempts, a question length cap, and caps on open connections (3 per visitor, 20 in total). |
 | Data handling | Connection URLs are held in server memory for a limited time and are never stored or logged. Error messages never include driver details. |
 
 A read-only database user is still the strongest protection, and the app tells users to use one.
@@ -140,10 +140,10 @@ Set in `backend/.env` (see `backend/.env.example`):
 | Variable | Purpose |
 |---|---|
 | `GROQ_API_KEY` / `ANTHROPIC_API_KEY` | LLM provider (set at least one) |
-| `ACCESS_CODE` | Require a code to connect your own database |
+| `ACCESS_CODE` | Optional: require a code to connect your own database |
 | `RATE_LIMIT_PER_MINUTE`, `CONNECT_RATE_LIMIT_PER_MINUTE` | Per-client limits |
 | `MAX_ROWS_PER_TABLE`, `MAX_TABLES`, `MAX_QUERY_RESULTS`, `QUERY_TIMEOUT` | Sampling and query limits |
-| `SESSION_TTL_MINUTES`, `MAX_SESSIONS` | Connection session lifetime and cap |
+| `SESSION_TTL_MINUTES`, `MAX_SESSIONS`, `MAX_SESSIONS_PER_CLIENT` | Connection session lifetime and cap |
 | `CORS_ORIGINS` | Allowed frontend origins |
 | `ALLOW_PRIVATE_HOSTS`, `ALLOW_SQLITE_CONNECTIONS` | Local development only |
 

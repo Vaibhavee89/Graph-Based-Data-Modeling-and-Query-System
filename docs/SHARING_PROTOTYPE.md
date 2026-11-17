@@ -28,7 +28,6 @@ The repo includes [render.yaml](../render.yaml), so most settings are pre-filled
    | Variable | Value |
    |---|---|
    | `GROQ_API_KEY` | your Groq key (or set `ANTHROPIC_API_KEY` in the dashboard afterwards) |
-   | `ACCESS_CODE` | a shared secret required to connect your own database |
    | `CORS_ORIGINS` | your Vercel URL (no trailing slash). Put a placeholder first and update it after step 2 |
 
 3. When the deploy finishes, open `https://<service>.onrender.com/health`. It should return `{"status":"healthy"...}`.
@@ -45,7 +44,9 @@ Other Docker hosts (Railway, Fly.io, ...) work with the same `backend/Dockerfile
 
 ### 3. Share
 
-Send the Vercel URL. Visitors immediately see the sample data and can ask questions about it. To use their own database they click **Connect your database** (and enter the access code, if you set one).
+Send the Vercel URL. Visitors immediately see the sample data and can ask questions about it. To use their own database they click **Connect your database** and paste a connection URL; no sign-up or code is needed. If you want to restrict that feature, set `ACCESS_CODE` on the backend and the dialog will ask for it.
+
+> Without an access code, anyone with the link can make your backend connect to a database they choose. The limits that contain this: only database URLs are accepted, private and internal addresses are blocked, each visitor gets 5 connection attempts and 3 open connections, and the whole server holds at most 20 sessions. Set `ACCESS_CODE` if you see abuse.
 
 > Anyone with the link can use your LLM key through the chat. Chat is rate limited to 10 questions per minute per visitor, but set a spend limit on the Groq/Anthropic account, and rotate the key if it leaks.
 

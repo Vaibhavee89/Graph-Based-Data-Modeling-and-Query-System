@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.connectors.demo import get_demo
-from app.connectors.sessions import sessions
+from app.connectors.sessions import TooManySessions, sessions
 from app.connectors.url_safety import UnsafeURL
 from app.core.rate_limit import RateLimiter, client_key
 
@@ -70,9 +70,11 @@ def connect(
             headers={"Retry-After": str(int(retry) + 1)},
         )
     try:
-        s = sessions.open(body.url)
+        s = sessions.open(body.url, client=client_key(request))
     except UnsafeURL as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except TooManySessions as e:
+        raise HTTPException(status_code=429, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except ValueError as e:

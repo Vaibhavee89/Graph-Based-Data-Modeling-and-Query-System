@@ -27,6 +27,11 @@ class DbSession:
     schema: SchemaInfo
     graph: nx.DiGraph
     expires_at: float
+    client: str = ""  # who opened it (IP), used for the per-client cap
+
+
+class TooManySessions(RuntimeError):
+    """One client already has the maximum number of open connections."""
 
 
 def _connect_args(backend: str) -> dict:
@@ -78,13 +83,21 @@ class SessionManager:
         for token in [t for t, s in self._sessions.items() if s.expires_at <= now]:
             self._sessions.pop(token).engine.dispose()
 
-    def open(self, raw_url: str) -> DbSession:
+    def open(self, raw_url: str, client: str = "") -> DbSession:
         url, dialect, backend = parse_and_check(raw_url)
         with self._lock:
             self._purge()
             if len(self._sessions) >= settings.max_sessions:
                 raise RuntimeError(
                     "The server is busy. Please try again in a few minutes."
+                )
+            if client and (
+                sum(1 for x in self._sessions.values() if x.client == client)
+                >= settings.max_sessions_per_client
+            ):
+                raise TooManySessions(
+                    "You already have the maximum number of open connections. "
+                    "Disconnect one or wait a few minutes."
                 )
 
         engine = create_engine(
@@ -125,6 +138,7 @@ class SessionManager:
             schema=schema,
             graph=graph,
             expires_at=time.time() + settings.session_ttl_minutes * 60,
+            client=client,
         )
         with self._lock:
             self._sessions[session.token] = session

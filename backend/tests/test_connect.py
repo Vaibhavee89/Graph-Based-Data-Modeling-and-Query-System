@@ -247,3 +247,28 @@ def test_unresolvable_host_message_hints_at_special_characters(monkeypatch):
     monkeypatch.setattr(settings, "allow_private_hosts", False)
     with pytest.raises(UnsafeURL, match="encode them"):
         parse_and_check("postgresql://u:p@this-host-does-not-exist.invalid/db")
+
+
+def test_connecting_needs_no_access_code_when_none_is_configured(
+    client, db_url, monkeypatch
+):
+    monkeypatch.setattr(settings, "access_code", None)
+    assert client.get("/api/connect/config").json()["access_code_required"] is False
+    r = client.post(
+        "/api/connect", json={"url": db_url}
+    )  # no X-Access-Code header at all
+    assert r.status_code == 200
+
+
+def test_one_client_cannot_hog_every_session(client, db_url, monkeypatch):
+    monkeypatch.setattr(settings, "max_sessions_per_client", 2)
+    codes = [
+        client.post("/api/connect", json={"url": db_url}).status_code for _ in range(3)
+    ]
+    assert codes == [200, 200, 429]
+    body = client.post("/api/connect", json={"url": db_url}).json()
+    assert "maximum number of open connections" in body["detail"]
+    # closing one frees a slot
+    sid = next(iter(sessions_mod.sessions._sessions))
+    client.delete("/api/connect", headers={"X-Session-Id": sid})
+    assert client.post("/api/connect", json={"url": db_url}).status_code == 200

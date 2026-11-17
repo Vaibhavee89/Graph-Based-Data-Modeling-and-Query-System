@@ -20,10 +20,9 @@ services:
         value: "true"
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
-      # Secrets and per-deployment values: Render asks for these when you create the Blueprint
+      # Secrets and per-deployment values: Render asks for these when you create the Blueprint.
+      # Optional: add ACCESS_CODE in the dashboard to require a code for connecting a database.
       - key: GROQ_API_KEY
-        sync: false
-      - key: ACCESS_CODE
         sync: false
       - key: CORS_ORIGINS
         sync: false
